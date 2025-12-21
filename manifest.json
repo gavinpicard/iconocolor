@@ -1,0 +1,9 @@
+{
+	"id": "iconocolor",
+	"name": "Iconocolor",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "All-in-one solution for folder icons, icon colors, and folder colors in Obsidian.",
+	"author": "",
+	"isDesktopOnly": false
+}
