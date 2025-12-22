@@ -150,8 +150,12 @@ export class FolderConfigModal extends Modal {
 			this.showCustomInput();
 		} else {
 			setTimeout(async () => {
-				await this.performSearch();
-				await this.renderResults();
+				try {
+					await this.performSearch();
+					await this.renderResults();
+				} catch (error) {
+					console.error('[Iconocolor] Error in initial search:', error);
+				}
 			}, 100);
 		}
 		this.updatePreview().catch(console.error);
@@ -245,7 +249,11 @@ export class FolderConfigModal extends Modal {
 					clearTimeout(this.searchTimeout);
 				}
 				this.searchTimeout = window.setTimeout(async () => {
-					await this.performSearch();
+					try {
+						await this.performSearch();
+					} catch (error) {
+						console.error('[Iconocolor] Error in search:', error);
+					}
 				}, 300);
 			};
 		}
@@ -1110,7 +1118,7 @@ export class FolderConfigModal extends Modal {
 					}
 					const iconElement = await renderIconAsSvg(iconInfo!, 16, iconColor, this.app);
 					this.previewIcon.appendChild(iconElement);
-				})();
+				})().catch(console.error);
 			} else if (this.result.icon && (this.result.icon.startsWith('http') || this.result.icon.startsWith('/'))) {
 				const img = document.createElement('img');
 				img.src = this.result.icon;

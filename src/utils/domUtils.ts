@@ -339,7 +339,7 @@ export function applyFolderStyles(
 						folderName.removeAttribute('data-iconocolor-loading');
 						console.error(`[Iconocolor] Error loading icon ${config.icon}:`, error);
 					}
-				})();
+				})().catch(console.error);
 			}
 		} else if (config.icon.startsWith('<svg') || config.icon.startsWith('data:image')) {
 			// SVG content - render directly

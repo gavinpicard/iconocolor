@@ -40,7 +40,11 @@ export default class IconocolorPlugin extends Plugin {
 								.setTitle('Remove icon and colors')
 								.setIcon('trash')
 								.onClick(async () => {
-									await this.folderManager.removeFolderConfig(folderPath);
+									try {
+										await this.folderManager.removeFolderConfig(folderPath);
+									} catch (error) {
+										new Notice(`Failed to remove folder configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+									}
 								});
 						});
 					}
@@ -54,7 +58,7 @@ export default class IconocolorPlugin extends Plugin {
 		// Add command to open settings
 		this.addCommand({
 			id: 'open-settings',
-			name: 'Open Iconocolor settings',
+			name: 'Open settings',
 			callback: () => {
 				// @ts-ignore - setting API may vary
 				this.app.setting.open();

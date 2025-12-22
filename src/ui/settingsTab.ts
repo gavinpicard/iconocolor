@@ -144,7 +144,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.activePaletteIndex = parseInt(value, 10);
 					await this.plugin.saveSettings();
-					this.plugin.folderManager.updateSettings(this.plugin.settings);
+					await this.plugin.folderManager.updateSettings(this.plugin.settings);
 					this.displayWithScrollPreservation();
 				});
 			});
@@ -198,8 +198,8 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				button
 					.setButtonText('+ Add Palette')
 					.setCta()
-					.onClick(() => {
-						this.addPalette();
+					.onClick(async () => {
+						await this.addPalette();
 					});
 			});
 
@@ -337,8 +337,8 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				button
 					.setButtonText('+ Add Rule')
 					.setCta()
-					.onClick(() => {
-						this.addDefaultIconRule();
+					.onClick(async () => {
+						await this.addDefaultIconRule();
 					});
 			});
 
@@ -528,13 +528,13 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		).open();
 	}
 
-	private addPalette(): void {
+	private async addPalette(): Promise<void> {
 		const newPalette: ColorPalette = {
 			name: `Palette ${this.plugin.settings.colorPalettes.length + 1}`,
 			colors: ['#FF6B6B', '#4ECDC4', '#45B7D1']
 		};
 		this.plugin.settings.colorPalettes.push(newPalette);
-		this.plugin.saveSettings();
+		await this.plugin.saveSettings();
 		this.displayWithScrollPreservation();
 	}
 
@@ -633,13 +633,13 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			async (editedPalette) => {
 				this.plugin.settings.colorPalettes[index] = editedPalette;
 				await this.plugin.saveSettings();
-				this.plugin.folderManager.updateSettings(this.plugin.settings);
+				await this.plugin.folderManager.updateSettings(this.plugin.settings);
 				this.displayWithScrollPreservation();
 			}
 		).open();
 	}
 
-	private addDefaultIconRule(): void {
+	private async addDefaultIconRule(): Promise<void> {
 		if (!this.plugin.settings.defaultIconRules) {
 			this.plugin.settings.defaultIconRules = [];
 		}
@@ -653,7 +653,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		};
 
 		this.plugin.settings.defaultIconRules.push(newRule);
-		this.plugin.saveSettings();
+		await this.plugin.saveSettings();
 		this.editDefaultIconRule(this.plugin.settings.defaultIconRules.length - 1);
 	}
 
