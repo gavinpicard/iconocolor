@@ -304,6 +304,21 @@ export function getLucideIconName(icon: string): string {
 }
 
 /**
+ * Validate file path to prevent path traversal attacks
+ */
+function isValidFilePath(filePath: string): boolean {
+	// Prevent path traversal
+	if (filePath.includes('..')) {
+		return false;
+	}
+	// Allow paths within vault (relative) or .obsidian folder
+	// Paths starting with / are absolute (vault root)
+	// Paths starting with .obsidian/ are in the .obsidian folder
+	// Other relative paths are in the vault
+	return true; // All paths are validated by Obsidian's vault API
+}
+
+/**
  * Load SVG content from a vault file and apply color to it
  * This removes hardcoded colors and applies the specified color
  * Works with both regular vault files and .obsidian folder files
@@ -314,6 +329,12 @@ export async function loadSvgWithColor(
 	color?: string
 ): Promise<string | null> {
 	try {
+		// Validate file path
+		if (!isValidFilePath(filePath)) {
+			console.warn(`[Iconocolor] Invalid file path: ${filePath}`);
+			return null;
+		}
+
 		// Try using getAbstractFileByPath first (for regular vault files)
 		let svgContent: string | null = null;
 		

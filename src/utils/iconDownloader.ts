@@ -11,6 +11,34 @@ export interface DownloadResult {
 }
 
 /**
+ * Validate URL format
+ */
+function isValidUrl(urlString: string): boolean {
+	try {
+		const url = new URL(urlString);
+		// Only allow http and https protocols
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Sanitize file name to prevent path traversal and invalid characters
+ */
+function sanitizeFileName(fileName: string): string {
+	// Remove path traversal attempts
+	let sanitized = fileName.replace(/\.\./g, '').replace(/\//g, '').replace(/\\/g, '');
+	// Remove invalid filename characters
+	sanitized = sanitized.replace(/[<>:"|?*\x00-\x1f]/g, '');
+	// Limit length
+	if (sanitized.length > 100) {
+		sanitized = sanitized.substring(0, 100);
+	}
+	return sanitized || 'icon';
+}
+
+/**
  * Ensure the .obsidian/icons folder exists
  */
 export async function ensureIconsFolderExists(app: any): Promise<TFolder | null> {
@@ -90,12 +118,19 @@ export async function downloadSimpleIcon(
 	color?: string
 ): Promise<DownloadResult> {
 	try {
+		// Sanitize icon name
+		const slug = sanitizeFileName(iconName).toLowerCase().replace(/\s+/g, '-');
+		
+		// Validate color format if provided
+		if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+			return { success: false, error: 'Invalid color format. Use hex format like #FF0000' };
+		}
+
 		// Ensure icons folder exists - but don't fail if we can't find it via API
 		// The folder might exist in the file system even if Obsidian's API can't find it
 		await ensureIconsFolderExists(app);
 
 		// Fetch the SVG from SimpleIcons CDN using requestUrl to bypass CORS
-		const slug = iconName.toLowerCase().replace(/\s+/g, '-');
 		const colorParam = color ? `?color=${color.replace('#', '')}` : '';
 		const url = `https://cdn.simpleicons.org/${slug}${colorParam}`;
 		
@@ -136,6 +171,14 @@ export async function downloadIconFromUrl(
 	fileName: string
 ): Promise<DownloadResult> {
 	try {
+		// Validate URL
+		if (!isValidUrl(url)) {
+			return { success: false, error: 'Invalid URL format. Only http:// and https:// URLs are allowed.' };
+		}
+
+		// Sanitize file name
+		fileName = sanitizeFileName(fileName);
+
 		// Ensure icons folder exists - but don't fail if we can't find it via API
 		// The folder might exist in the file system even if Obsidian's API can't find it
 		await ensureIconsFolderExists(app);

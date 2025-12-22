@@ -431,7 +431,15 @@ export async function downloadIconPack(
 						}
 						
 						// Clean up filename - normalize to lowercase with hyphens
-						const pathParts = iconRelativePath.split('/');
+						// Sanitize path to prevent path traversal
+						const sanitizedPath = iconRelativePath.replace(/\.\./g, '').replace(/[<>:"|?*\x00-\x1f]/g, '');
+						const pathParts = sanitizedPath.split('/').filter(p => p.length > 0);
+						
+						if (pathParts.length === 0) {
+							console.warn(`Invalid icon path: ${iconRelativePath}`);
+							return;
+						}
+						
 						const fileName = pathParts[pathParts.length - 1].toLowerCase().replace(/\s+/g, '-');
 						
 						// For nested paths, create subdirectories if needed
