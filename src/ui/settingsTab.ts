@@ -38,61 +38,95 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			.setHeading()
 			.setName('General');
 
-		new Setting(containerEl)
+		const iconSizeSetting = new Setting(containerEl)
 			.setName('Icon size')
-			.setDesc('Global size for all folder icons in pixels')
-			.addSlider(slider => {
-				slider
-					.setLimits(12, 32, 1)
-					.setValue(this.plugin.settings.iconSize || 16)
-					.setDynamicTooltip()
-					.onChange(async (value) => {
-						this.plugin.settings.iconSize = value;
+			.setDesc('Global size for all folder icons in pixels');
+		
+		let iconSizeTextInput: HTMLInputElement | null = null;
+		let iconSizeSlider: HTMLInputElement | null = null;
+		
+		iconSizeSetting.addSlider(slider => {
+			slider
+				.setLimits(12, 32, 1)
+				.setValue(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.iconSize = value;
+					// Update text input to match slider
+					if (iconSizeTextInput) {
+						iconSizeTextInput.value = String(value);
+					}
+					await this.plugin.saveSettings();
+					this.plugin.folderManager.applyAllStyles();
+				});
+			// Store reference to slider element
+			iconSizeSlider = slider.sliderEl;
+		});
+		
+		iconSizeSetting.addText(text => {
+			text
+				.setValue(String(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16))
+				.setPlaceholder('16')
+				.onChange(async (value) => {
+					const numValue = parseInt(value, 10);
+					if (!isNaN(numValue) && numValue >= 12 && numValue <= 32) {
+						this.plugin.settings.iconSize = numValue;
+						// Update slider to match text input
+						if (iconSizeSlider) {
+							iconSizeSlider.value = String(numValue);
+						}
 						await this.plugin.saveSettings();
 						this.plugin.folderManager.applyAllStyles();
-					});
-			})
-			.addText(text => {
-				text
-					.setValue(String(this.plugin.settings.iconSize || 16))
-					.setPlaceholder('16')
-					.onChange(async (value) => {
-						const numValue = parseInt(value, 10);
-						if (!isNaN(numValue) && numValue >= 12 && numValue <= 32) {
-							this.plugin.settings.iconSize = numValue;
-							await this.plugin.saveSettings();
-							this.plugin.folderManager.applyAllStyles();
-						}
-					});
-			});
+					}
+				});
+			// Store reference to text input element
+			iconSizeTextInput = text.inputEl;
+		});
 
-		new Setting(containerEl)
+		const opacitySetting = new Setting(containerEl)
 			.setName('Folder background opacity')
-			.setDesc('Global opacity for folder background colors (0-100%). Only applies if a folder has a background color set.')
-			.addSlider(slider => {
-				slider
-					.setLimits(0, 100, 1)
-					.setValue(this.plugin.settings.folderColorOpacity || 100)
-					.setDynamicTooltip()
-					.onChange(async (value) => {
-						this.plugin.settings.folderColorOpacity = value;
+			.setDesc('Global opacity for folder background colors (0-100%). Only applies if a folder has a background color set.');
+		
+		let opacityTextInput: HTMLInputElement | null = null;
+		let opacitySlider: HTMLInputElement | null = null;
+		
+		opacitySetting.addSlider(slider => {
+			slider
+				.setLimits(0, 100, 1)
+				.setValue(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.folderColorOpacity = value;
+					// Update text input to match slider
+					if (opacityTextInput) {
+						opacityTextInput.value = String(value);
+					}
+					await this.plugin.saveSettings();
+					this.plugin.folderManager.applyAllStyles();
+				});
+			// Store reference to slider element
+			opacitySlider = slider.sliderEl;
+		});
+		
+		opacitySetting.addText(text => {
+			text
+				.setValue(String(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100))
+				.setPlaceholder('100')
+				.onChange(async (value) => {
+					const numValue = parseInt(value, 10);
+					if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+						this.plugin.settings.folderColorOpacity = numValue;
+						// Update slider to match text input
+						if (opacitySlider) {
+							opacitySlider.value = String(numValue);
+						}
 						await this.plugin.saveSettings();
 						this.plugin.folderManager.applyAllStyles();
-					});
-			})
-			.addText(text => {
-				text
-					.setValue(String(this.plugin.settings.folderColorOpacity || 100))
-					.setPlaceholder('100')
-					.onChange(async (value) => {
-						const numValue = parseInt(value, 10);
-						if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-							this.plugin.settings.folderColorOpacity = numValue;
-							await this.plugin.saveSettings();
-							this.plugin.folderManager.applyAllStyles();
-						}
-					});
-			});
+					}
+				});
+			// Store reference to text input element
+			opacityTextInput = text.inputEl;
+		});
 
 		// Color Palettes section (moved up - foundation for colors)
 		new Setting(containerEl)
@@ -756,29 +790,26 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	 * Add preview showing how base color transforms into element colors
 	 */
 	private addBaseTransformationPreview(containerEl: HTMLElement): void {
-		const previewContainer = containerEl.createDiv();
-		previewContainer.addClass('transformation-preview');
-		previewContainer.style.marginBottom = '12px';
-		previewContainer.style.padding = '8px';
-		previewContainer.style.background = 'var(--background-secondary)';
-		previewContainer.style.borderRadius = '4px';
-		previewContainer.style.border = '1px solid var(--background-modifier-border)';
+		// Sample base color (use first color from active palette)
+		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
+		const sampleBaseColor = activePalette?.colors[0] || '#4ECDC4';
 		
-		const previewTitle = previewContainer.createEl('div', { text: 'Preview: Base Color → Element Colors' });
-		previewTitle.style.fontSize = '11px';
-		previewTitle.style.fontWeight = '600';
-		previewTitle.style.marginBottom = '8px';
-		previewTitle.style.color = 'var(--text-normal)';
+		const previewSetting = new Setting(containerEl)
+			.setName('Preview: Base Color → Element Colors')
+			.setDesc('');
 		
-		const previewContent = previewContainer.createDiv();
+		// Remove the description element to make it cleaner
+		const descEl = previewSetting.descEl;
+		if (descEl) {
+			descEl.remove();
+		}
+		
+		const previewContent = previewSetting.controlEl;
 		previewContent.style.display = 'flex';
 		previewContent.style.alignItems = 'center';
 		previewContent.style.gap = '8px';
 		previewContent.style.flexWrap = 'wrap';
-		
-		// Sample base color (use first color from active palette)
-		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
-		const sampleBaseColor = activePalette?.colors[0] || '#4ECDC4';
+		previewContent.style.width = '100%';
 		
 		// Base color swatch
 		const baseSwatch = previewContent.createDiv();
@@ -790,14 +821,19 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const baseColorBox = baseSwatch.createDiv();
 		baseColorBox.style.width = '36px';
 		baseColorBox.style.height = '36px';
-		baseColorBox.style.borderRadius = '3px';
+		baseColorBox.style.borderRadius = '4px';
 		baseColorBox.style.border = '1px solid var(--background-modifier-border)';
 		baseColorBox.style.backgroundColor = sampleBaseColor;
-		baseColorBox.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+		baseColorBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
 		
 		const baseLabel = baseSwatch.createEl('span', { text: 'Base' });
 		baseLabel.style.fontSize = '9px';
 		baseLabel.style.color = 'var(--text-muted)';
+		
+		const baseColorValue = baseSwatch.createEl('span', { text: sampleBaseColor });
+		baseColorValue.style.fontSize = '8px';
+		baseColorValue.style.fontFamily = 'var(--font-monospace)';
+		baseColorValue.style.color = 'var(--text-faint)';
 		
 		// Arrow
 		const arrow = previewContent.createEl('span', { text: '→' });
@@ -829,7 +865,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		updatePreview();
 		
 		// Store update function for later use
-		(previewContainer as any).updatePreview = updatePreview;
+		(previewSetting.settingEl as any).updatePreview = updatePreview;
 	}
 	
 	/**
@@ -845,10 +881,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const colorBox = preview.createDiv();
 		colorBox.style.width = '36px';
 		colorBox.style.height = '36px';
-		colorBox.style.borderRadius = '3px';
+		colorBox.style.borderRadius = '4px';
 		colorBox.style.border = '1px solid var(--background-modifier-border)';
 		colorBox.style.backgroundColor = color;
-		colorBox.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+		colorBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
 		colorBox.style.display = 'flex';
 		colorBox.style.alignItems = 'center';
 		colorBox.style.justifyContent = 'center';
@@ -868,15 +904,13 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	 * Update all previews in the settings
 	 */
 	private updateAllPreviews(): void {
-		const basePreview = this.containerEl.querySelector('.transformation-preview') as any;
-		if (basePreview && basePreview.updatePreview) {
-			basePreview.updatePreview();
-		}
-		
-		const childPreview = this.containerEl.querySelector('.child-transformation-preview') as any;
-		if (childPreview && childPreview.updatePreview) {
-			childPreview.updatePreview();
-		}
+		// Find previews by checking for updatePreview function on setting elements
+		const allSettings = this.containerEl.querySelectorAll('.setting-item');
+		allSettings.forEach(setting => {
+			if ((setting as any).updatePreview) {
+				(setting as any).updatePreview();
+			}
+		});
 	}
 	
 	/**
@@ -899,31 +933,27 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	 * Add preview showing how child base colors are derived from parent
 	 */
 	private addChildBaseTransformationPreview(containerEl: HTMLElement): void {
-		const previewContainer = containerEl.createDiv();
-		previewContainer.addClass('child-transformation-preview');
-		previewContainer.style.marginBottom = '12px';
-		previewContainer.style.padding = '8px';
-		previewContainer.style.background = 'var(--background-secondary)';
-		previewContainer.style.borderRadius = '4px';
-		previewContainer.style.border = '1px solid var(--background-modifier-border)';
-		
-		const previewTitle = previewContainer.createEl('div', { text: 'Preview: Parent → Child Colors' });
-		previewTitle.style.fontSize = '11px';
-		previewTitle.style.fontWeight = '600';
-		previewTitle.style.marginBottom = '8px';
-		previewTitle.style.color = 'var(--text-normal)';
-		
 		// Sample parent color
 		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
 		const parentColor = activePalette?.colors[0] || '#4ECDC4';
 		const nextSiblingColor = activePalette?.colors[1] || '#45B7D1';
 		
-		// Create static parent swatch and arrow (don't recreate on update)
-		const previewContent = previewContainer.createDiv();
+		const previewSetting = new Setting(containerEl)
+			.setName('Preview: Parent → Child Colors')
+			.setDesc('');
+		
+		// Remove the description element to make it cleaner
+		const descEl = previewSetting.descEl;
+		if (descEl) {
+			descEl.remove();
+		}
+		
+		const previewContent = previewSetting.controlEl;
 		previewContent.style.display = 'flex';
 		previewContent.style.alignItems = 'center';
 		previewContent.style.gap = '8px';
 		previewContent.style.flexWrap = 'wrap';
+		previewContent.style.width = '100%';
 		
 		// Parent color (static)
 		const parentSwatch = previewContent.createDiv();
@@ -935,14 +965,19 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const parentBox = parentSwatch.createDiv();
 		parentBox.style.width = '36px';
 		parentBox.style.height = '36px';
-		parentBox.style.borderRadius = '3px';
+		parentBox.style.borderRadius = '4px';
 		parentBox.style.border = '1px solid var(--background-modifier-border)';
 		parentBox.style.backgroundColor = parentColor;
-		parentBox.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+		parentBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
 		
 		const parentLabel = parentSwatch.createEl('span', { text: 'Parent' });
 		parentLabel.style.fontSize = '9px';
 		parentLabel.style.color = 'var(--text-muted)';
+		
+		const parentColorValue = parentSwatch.createEl('span', { text: parentColor });
+		parentColorValue.style.fontSize = '8px';
+		parentColorValue.style.fontFamily = 'var(--font-monospace)';
+		parentColorValue.style.color = 'var(--text-faint)';
 		
 		// Arrow (static)
 		const arrow = previewContent.createEl('span', { text: '→' });
@@ -995,21 +1030,26 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				const childBox = childSwatch.createDiv();
 				childBox.style.width = '36px';
 				childBox.style.height = '36px';
-				childBox.style.borderRadius = '3px';
+				childBox.style.borderRadius = '4px';
 				childBox.style.border = '1px solid var(--background-modifier-border)';
 				childBox.style.backgroundColor = childBaseColor;
-				childBox.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+				childBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
 				
 				const childLabel = childSwatch.createEl('span', { text: `C${i + 1}` });
 				childLabel.style.fontSize = '9px';
 				childLabel.style.color = 'var(--text-muted)';
+				
+				const childColorValue = childSwatch.createEl('span', { text: childBaseColor });
+				childColorValue.style.fontSize = '8px';
+				childColorValue.style.fontFamily = 'var(--font-monospace)';
+				childColorValue.style.color = 'var(--text-faint)';
 			}
 		};
 		
 		updatePreview();
 		
 		// Store update function for later use
-		(previewContainer as any).updatePreview = updatePreview;
+		(previewSetting.settingEl as any).updatePreview = updatePreview;
 	}
 
 	/**
@@ -1098,6 +1138,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 								(this.plugin.settings[settingKey] as any).saturation = Math.max(-100, Math.min(100, numValue));
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
+								this.updateAllPreviews();
 							}
 						});
 				});
@@ -1114,6 +1155,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 								(this.plugin.settings[settingKey] as any).lightness = Math.max(-100, Math.min(100, numValue));
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
+								this.updateAllPreviews();
 							}
 						});
 				});

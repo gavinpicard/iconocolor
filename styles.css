@@ -519,6 +519,37 @@
 	margin: 16px 0;
 }
 
+/* Profile switch modal */
+.iconocolor-profile-switch-modal .modal-content {
+	padding: 20px;
+}
+
+.iconocolor-profiles-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.iconocolor-profile-item {
+	padding: 12px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-secondary);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.iconocolor-profile-item:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.iconocolor-profile-name {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
 /* Folder config modal - modern compact layout */
 .folder-config-modal {
 	max-width: 800px;

@@ -1,4 +1,4 @@
-import { Plugin, TFolder } from 'obsidian';
+import { Plugin, TFolder, Modal, Notice, App } from 'obsidian';
 import { IconocolorSettings, FolderConfig, SettingsProfile } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { FolderManager } from './folderManager';
@@ -62,6 +62,68 @@ export default class IconocolorPlugin extends Plugin {
 				this.app.setting.openTabById(this.manifest.id);
 			},
 		});
+
+		// Add command to switch profiles
+		this.addCommand({
+			id: 'switch-profile',
+			name: 'Switch profile',
+			callback: async () => {
+				const profiles = this.settings.profiles || [];
+				if (profiles.length === 0) {
+					new Notice('No profiles available. Create a profile in settings first.');
+					return;
+				}
+
+				// Create a simple modal to select profile
+				const modal = new ProfileSwitchModal(this.app, profiles, async (profileId: string) => {
+					await this.loadProfile(profileId);
+				});
+				modal.open();
+			},
+		});
+	}
+
+	/**
+	 * Load a profile (public method for command palette)
+	 */
+	async loadProfile(profileId: string): Promise<void> {
+		const profile = this.settings.profiles?.find(p => p.id === profileId);
+		if (!profile) {
+			new Notice('Profile not found');
+			return;
+		}
+
+		// Helper function for deep cloning
+		const deepClone = <T>(obj: T): T => {
+			if (obj === null || typeof obj !== 'object') return obj;
+			if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
+			if (obj instanceof Array) return obj.map(item => deepClone(item)) as unknown as T;
+			const cloned = {} as T;
+			for (const key in obj) {
+				if (Object.prototype.hasOwnProperty.call(obj, key)) {
+					cloned[key] = deepClone(obj[key]);
+				}
+			}
+			return cloned;
+		};
+
+		// Apply profile settings
+		// Note: colorPalettes are NOT loaded from profiles - they remain global
+		if (profile.iconSize !== undefined) this.settings.iconSize = profile.iconSize;
+		if (profile.activePaletteIndex !== undefined) this.settings.activePaletteIndex = profile.activePaletteIndex;
+		if (profile.autoColorEnabled !== undefined) this.settings.autoColorEnabled = profile.autoColorEnabled;
+		if (profile.autoColorMode) this.settings.autoColorMode = profile.autoColorMode;
+		if (profile.iconColorTransformation) this.settings.iconColorTransformation = deepClone(profile.iconColorTransformation);
+		if (profile.folderColorTransformation) this.settings.folderColorTransformation = deepClone(profile.folderColorTransformation);
+		if (profile.textColorTransformation) this.settings.textColorTransformation = deepClone(profile.textColorTransformation);
+		if (profile.childBaseTransformation) this.settings.childBaseTransformation = deepClone(profile.childBaseTransformation);
+		if (profile.folderColorOpacity !== undefined) this.settings.folderColorOpacity = profile.folderColorOpacity;
+		if (profile.defaultIconRules) this.settings.defaultIconRules = deepClone(profile.defaultIconRules);
+
+		this.settings.activeProfileId = profileId;
+		await this.saveSettings();
+		await this.folderManager.updateSettings(this.settings);
+		new Notice(`Profile "${profile.name}" loaded`);
 	}
 
 	onunload() {
@@ -239,4 +301,43 @@ export default class IconocolorPlugin extends Plugin {
 
 // Export for use in settings tab
 export { IconocolorPlugin };
+
+/**
+ * Modal for switching profiles from command palette
+ */
+class ProfileSwitchModal extends Modal {
+	private profiles: SettingsProfile[];
+	private onSelect: (profileId: string) => Promise<void>;
+
+	constructor(app: App, profiles: SettingsProfile[], onSelect: (profileId: string) => Promise<void>) {
+		super(app);
+		this.profiles = profiles;
+		this.onSelect = onSelect;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('iconocolor-profile-switch-modal');
+
+		contentEl.createEl('h2', { text: 'Switch Profile' });
+
+		const profilesList = contentEl.createDiv('iconocolor-profiles-list');
+		
+		this.profiles.forEach(profile => {
+			const profileItem = profilesList.createDiv('iconocolor-profile-item');
+			profileItem.createEl('div', { text: profile.name, cls: 'iconocolor-profile-name' });
+			
+			profileItem.onclick = async () => {
+				await this.onSelect(profile.id);
+				this.close();
+			};
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
 
