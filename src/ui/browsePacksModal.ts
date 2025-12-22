@@ -15,7 +15,7 @@ export class BrowsePacksModal extends Modal {
 	onOpen(): void {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl('h2', { text: 'Browse Icon Packs' });
+		contentEl.createEl('h2', { text: 'Browse icon packs' });
 
 		// Search input
 		new Setting(contentEl)
@@ -23,7 +23,7 @@ export class BrowsePacksModal extends Modal {
 			.setDesc('Type to search for icon packs')
 			.addText(text => {
 				text
-					.setPlaceholder('e.g., tabler, heroicons, feather...')
+					.setPlaceholder('E.g., tabler, heroicons, feather...')
 					.setValue(this.searchQuery)
 					.onChange((value) => {
 						this.searchQuery = value;
@@ -57,10 +57,10 @@ export class BrowsePacksModal extends Modal {
 			);
 		}
 
-		await this.renderResults(installedIds);
+		this.renderResults(installedIds);
 	}
 
-	private async renderResults(installedIds: Set<string>): Promise<void> {
+	private renderResults(installedIds: Set<string>): void {
 		this.resultsContainer.empty();
 
 		if (this.searchResults.length === 0) {
@@ -99,7 +99,7 @@ export class BrowsePacksModal extends Modal {
 					if (installedPack && installedPack.iconCount) {
 						packMeta.createEl('span', { text: ` • ${installedPack.iconCount} installed` });
 					} else {
-						packMeta.createEl('span', { text: ' • Installed' });
+						packMeta.createEl('span', { text: 'Installed' });
 					}
 				}).catch(console.error);
 			}
@@ -159,7 +159,7 @@ export class BrowsePacksModal extends Modal {
 									.filter(p => p.installed)
 									.map(p => p.id)
 							);
-							await this.renderResults(newInstalledIds);
+							this.renderResults(newInstalledIds);
 							
 							// Show success notice
 							new Notice(`${pack.name} downloaded successfully! ${count.toLocaleString()} icons installed.`);

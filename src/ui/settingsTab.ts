@@ -1,10 +1,10 @@
 import { App, Modal, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { IconocolorPlugin } from '../main';
-import { FolderConfig, ColorPalette, DefaultIconRule, ColorTransformation, ChildBaseTransformation, SettingsProfile } from '../types';
+import { FolderConfig, ColorPalette, DefaultIconRule, ColorTransformation, SettingsProfile } from '../types';
 import { FolderConfigModal } from './folderConfigModal';
 import { getInstalledIconPacks, deleteIconPack, IconPack } from '../utils/iconPackManager';
 import { BrowsePacksModal } from './browsePacksModal';
-import { applyHSLTransformation, applyLightnessTransformation, interpolateColor } from '../utils/colorUtils';
+import { applyHSLTransformation, applyLightnessTransformation } from '../utils/colorUtils';
 
 export class IconocolorSettingTab extends PluginSettingTab {
 	plugin: IconocolorPlugin;
@@ -196,7 +196,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.addButton(button => {
 				button
-					.setButtonText('+ Add Palette')
+					.setButtonText('Add palette')
 					.setCta()
 					.onClick(async () => {
 						await this.addPalette();
@@ -335,7 +335,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.addButton(button => {
 				button
-					.setButtonText('+ Add Rule')
+					.setButtonText('Add rule')
 					.setCta()
 					.onClick(async () => {
 						await this.addDefaultIconRule();
@@ -349,10 +349,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Browse icon packs')
-			.setDesc('Search and download from available icon packs. Icons are stored in .obsidian/icons/')
+			.setDesc('Search and download from available icon packs.')
 			.addButton(button => {
 				button
-					.setButtonText('Browse Packs')
+					.setButtonText('Browse packs')
 					.setCta()
 					.onClick(() => {
 						new BrowsePacksModal(this.app, () => {
@@ -485,7 +485,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		} else {
 			const emptyMsg = new Setting(containerEl)
 				.setName('No icon packs installed')
-				.setDesc('Click "Browse Packs" above to download icon packs.');
+				.setDesc('Click "browse packs" above to download icon packs.');
 			
 			if (browseSetting) {
 				browseSetting.insertAdjacentElement('afterend', emptyMsg.settingEl);
@@ -554,7 +554,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			onOpen(): void {
 				const { contentEl } = this;
 				contentEl.empty();
-				contentEl.createEl('h2', { text: 'Edit Palette' });
+				contentEl.createEl('h2', { text: 'Edit palette' });
 
 				// Name
 				new Setting(contentEl)
@@ -598,7 +598,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Add color button
 				new Setting(contentEl)
 					.addButton(button => {
-						button.setButtonText('+ Add Color');
+						button.setButtonText('Add color');
 						button.onClick(() => {
 							this.palette.colors.push('#000000');
 							renderColors();
@@ -677,7 +677,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			onOpen(): void {
 				const { contentEl } = this;
 				contentEl.empty();
-				contentEl.createEl('h2', { text: 'Default Icon Rule' });
+				contentEl.createEl('h2', { text: 'Default icon rule' });
 
 				// Pattern (regex)
 				new Setting(contentEl)
@@ -712,7 +712,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setDesc('Icon path or name (e.g., "lucide:folder", "lucide:file", or path to icon file)')
 					.addText(text => {
 						text.setValue(this.rule.icon);
-						text.setPlaceholder('e.g., lucide:folder')
+						text.setPlaceholder('E.g., lucide:folder')
 						text.onChange(value => {
 							this.rule.icon = value;
 						});
@@ -795,7 +795,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const sampleBaseColor = activePalette?.colors[0] || '#4ECDC4';
 		
 		const previewSetting = new Setting(containerEl)
-			.setName('Preview: Base Color → Element Colors')
+			.setName('Preview: Base color → Element colors')
 			.setDesc('');
 		
 		// Remove the description element to make it cleaner
@@ -939,7 +939,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const nextSiblingColor = activePalette?.colors[1] || '#45B7D1';
 		
 		const previewSetting = new Setting(containerEl)
-			.setName('Preview: Parent → Child Colors')
+			.setName('Preview: Parent → Child colors')
 			.setDesc('');
 		
 		// Remove the description element to make it cleaner
@@ -1333,7 +1333,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	private addProfileManagementSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setHeading()
-			.setName('Settings Profiles');
+			.setName('Settings profiles');
 
 		// Current profile indicator
 		if (this.plugin.settings.activeProfileId) {

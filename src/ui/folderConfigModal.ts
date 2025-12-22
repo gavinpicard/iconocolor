@@ -1,6 +1,6 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting } from 'obsidian';
 import { FolderConfig, IconocolorSettings } from '../types';
-import { IconInfo, searchIcons, getLucideIconUrl, isLucideIcon, getLucideIconName, renderIconAsSvg } from '../utils/iconService';
+import { IconInfo, getLucideIconUrl, isLucideIcon, getLucideIconName, renderIconAsSvg } from '../utils/iconService';
 import { applyHSLTransformation, applyLightnessTransformation, getColorFilter } from '../utils/colorUtils';
 import { ColorTransformation } from '../types';
 import { isLocalIcon } from '../utils/iconDownloader';
@@ -91,7 +91,7 @@ export class FolderConfigModal extends Modal {
 		// Header with folder path if available
 		const header = contentEl.createDiv();
 		header.addClass('folder-config-header');
-		const title = header.createEl('h2', { text: 'Folder Configuration' });
+		header.createEl('h2', { text: 'Folder configuration' });
 		if (this.folderPath) {
 			const pathEl = header.createEl('p', { text: this.folderPath });
 			pathEl.addClass('folder-config-path');
@@ -166,14 +166,13 @@ export class FolderConfigModal extends Modal {
 		container.empty();
 		
 		// Icon pack selector dropdown (more compact)
-		const packSelector = new Setting(container)
+		new Setting(container)
 			.setName('Icon pack')
 			.setDesc('')
 			.addDropdown(dropdown => {
 				// Add "All" option
 				dropdown.addOption('all', 'All');
 				dropdown.addOption('lucide', 'Lucide');
-				dropdown.addOption('simpleicons', 'SimpleIcons');
 				
 				// Add installed icon packs
 				getInstalledIconPacks(this.app).then((installedPacks: IconPack[]) => {
@@ -522,10 +521,7 @@ export class FolderConfigModal extends Modal {
 				'Icon',
 				'iconColor',
 				this.result.iconColor || iconComputed,
-				false, // isAutoColored
 				undefined, // autoColorValue
-				false, // isLinked
-				false, // isRelative - set to false so controls are enabled
 				iconIsComputed ? `Currently computed from base: ${iconComputed}. Set a value to override.` : undefined
 			);
 			
@@ -544,10 +540,7 @@ export class FolderConfigModal extends Modal {
 				'Background',
 				'folderColor',
 				this.result.folderColor || folderComputed,
-				false, // isAutoColored
 				undefined, // autoColorValue
-				false, // isLinked
-				false, // isRelative - set to false so controls are enabled
 				folderIsComputed ? `Currently computed from base: ${folderComputed}. Set a value to override.` : undefined
 			);
 			
@@ -566,10 +559,7 @@ export class FolderConfigModal extends Modal {
 				'Text',
 				'textColor',
 				this.result.textColor || textComputed,
-				false, // isAutoColored
 				undefined, // autoColorValue
-				false, // isLinked
-				false, // isRelative - set to false so controls are enabled
 				textIsComputed ? `Currently computed from base: ${textComputed}. Set a value to override.` : undefined
 			);
 		}
@@ -716,10 +706,7 @@ export class FolderConfigModal extends Modal {
 		label: string, 
 		colorKey: 'iconColor' | 'folderColor' | 'textColor', 
 		currentValue?: string,
-		isAutoColored: boolean = false,
 		autoColorValue?: string,
-		isLinked: boolean = false,
-		isRelative: boolean = false,
 		relativeDescription?: string
 	): void {
 		const colorRow = container.createDiv();
@@ -731,32 +718,12 @@ export class FolderConfigModal extends Modal {
 		const labelEl = labelContainer.createEl('label');
 		labelEl.setText(label);
 		labelEl.addClass('folder-config-color-label');
-		
-		// Add badges with better styling
-		if (isAutoColored && autoColorValue) {
-			const autoBadge = labelContainer.createEl('span', { text: 'Auto' });
-			autoBadge.addClass('folder-config-auto-badge');
-			autoBadge.addClass('folder-config-badge-primary');
-			autoBadge.title = `Primary auto-color: ${autoColorValue}\nThis color is automatically set based on your auto-color settings.`;
-		}
-		if (isRelative && relativeDescription) {
-			const relativeBadge = labelContainer.createEl('span', { text: 'Computed' });
-			relativeBadge.addClass('folder-config-linked-badge');
-			relativeBadge.addClass('folder-config-badge-secondary');
-			relativeBadge.title = relativeDescription;
-		}
-		if (isLinked && !isRelative) {
-			const linkedBadge = labelContainer.createEl('span', { text: 'Linked' });
-			linkedBadge.addClass('folder-config-linked-badge');
-			linkedBadge.addClass('folder-config-badge-secondary');
-			linkedBadge.title = 'Text color is automatically derived from icon color';
-		}
-		
+
 		const inputContainer = colorRow.createDiv();
 		inputContainer.addClass('folder-config-color-input-container');
 		
 		// Quick color picker from palette
-		if (this.settings && this.settings.colorPalettes.length > 0 && !isAutoColored && !isLinked && !isRelative) {
+		if (this.settings && this.settings.colorPalettes.length > 0) {
 			const activePalette = this.settings.colorPalettes[this.settings.activePaletteIndex || 0];
 			if (activePalette && activePalette.colors.length > 0) {
 				const quickColors = inputContainer.createDiv();
@@ -781,24 +748,20 @@ export class FolderConfigModal extends Modal {
 		}
 		
 		// HTML5 color picker
-		const colorPicker = inputContainer.createEl('input');
-		colorPicker.type = 'color';
-		colorPicker.value = currentValue || '#000000';
-		colorPicker.addClass('folder-config-color-picker');
-		
-		if (isAutoColored || isRelative || isLinked) {
-			colorPicker.disabled = true;
-			colorPicker.style.opacity = '0.5';
-			colorPicker.style.cursor = 'not-allowed';
-		} else {
-			colorPicker.onchange = (e: Event) => {
-				const value = (e.target as HTMLInputElement).value;
-				(this.result as any)[colorKey] = value;
-				const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
-				if (textInput) textInput.value = value;
-				this.updatePreview().catch(console.error);
-			};
-		}
+		const colorPicker = inputContainer.createEl("input");
+    colorPicker.type = "color";
+    colorPicker.value = currentValue || "#000000";
+    colorPicker.addClass("folder-config-color-picker");
+
+    colorPicker.onchange = (e: Event) => {
+      const value = (e.target as HTMLInputElement).value;
+      (this.result as any)[colorKey] = value;
+      const textInput = inputContainer.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement;
+      if (textInput) textInput.value = value;
+      this.updatePreview().catch(console.error);
+    };
 		
 		// Text input for hex value
 		const input = inputContainer.createEl('input');
@@ -807,98 +770,44 @@ export class FolderConfigModal extends Modal {
 		input.value = currentValue || '';
 		input.addClass('folder-config-input');
 		input.addClass('folder-config-color-text-input');
-		input.style.width = '100px';
-		
-		if (isAutoColored || isRelative || isLinked) {
-			input.disabled = true;
-			input.style.opacity = '0.6';
-			input.style.cursor = 'not-allowed';
-			if (isAutoColored) {
-				input.title = `Primary auto-color: ${autoColorValue || 'N/A'}\nEnable "Exclude from auto-coloring" to set manually.`;
-			} else if (isRelative) {
-				input.title = relativeDescription || 'Relative auto-color\nDisable relative coloring in settings to set manually.';
-			} else if (isLinked) {
-				input.title = 'Linked to icon color\nUnlink to set manually.';
-			}
-		} else {
-			input.oninput = (e: Event) => {
-				const value = (e.target as HTMLInputElement).value;
-				(this.result as any)[colorKey] = value || undefined;
-				// Clear base color when individual color is set
-				if (value) {
-					this.result.baseColor = undefined;
-				}
-				const colorInput = inputContainer.querySelector('input[type="color"]') as HTMLInputElement;
-				if (colorInput && /^#[0-9A-F]{6}$/i.test(value)) {
-					colorInput.value = value;
-				}
-				this.updatePreview().catch(console.error);
-			};
-			
-			// Sync color picker when text input changes
-			input.onchange = (e: Event) => {
-				const value = (e.target as HTMLInputElement).value;
-				if (/^#[0-9A-F]{6}$/i.test(value)) {
-					colorPicker.value = value;
-				}
-			};
-			
-			// Clear base color when individual color is set via color picker
-			colorPicker.onchange = (e: Event) => {
-				const value = (e.target as HTMLInputElement).value;
-				(this.result as any)[colorKey] = value;
-				this.result.baseColor = undefined;
-				const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
-				if (textInput) textInput.value = value;
-				this.updatePreview().catch(console.error);
-			};
-		}
+		input.style.width = "100px";
+
+    input.oninput = (e: Event) => {
+      const value = (e.target as HTMLInputElement).value;
+      (this.result as any)[colorKey] = value || undefined;
+      // Clear base color when individual color is set
+      if (value) {
+        this.result.baseColor = undefined;
+      }
+      const colorInput = inputContainer.querySelector(
+        'input[type="color"]'
+      ) as HTMLInputElement;
+      if (colorInput && /^#[0-9A-F]{6}$/i.test(value)) {
+        colorInput.value = value;
+      }
+      this.updatePreview().catch(console.error);
+    };
+
+    // Sync color picker when text input changes
+    input.onchange = (e: Event) => {
+      const value = (e.target as HTMLInputElement).value;
+      if (/^#[0-9A-F]{6}$/i.test(value)) {
+        colorPicker.value = value;
+      }
+    };
+
+    // Clear base color when individual color is set via color picker
+    colorPicker.onchange = (e: Event) => {
+      const value = (e.target as HTMLInputElement).value;
+      (this.result as any)[colorKey] = value;
+      this.result.baseColor = undefined;
+      const textInput = inputContainer.querySelector(
+        'input[type="text"]'
+      ) as HTMLInputElement;
+      if (textInput) textInput.value = value;
+      this.updatePreview().catch(console.error);
+    };
 	}
-
-	private addColorInput(container: HTMLElement, label: string, colorKey: 'iconColor' | 'folderColor' | 'textColor', currentValue?: string, showQuickPicker: boolean = true): void {
-		const colorRow = container.createDiv();
-		colorRow.addClass('folder-config-color-row');
-		
-		const labelEl = colorRow.createEl('label');
-		labelEl.setText(label);
-		labelEl.addClass('folder-config-color-label');
-
-		const inputContainer = colorRow.createDiv();
-		inputContainer.addClass('folder-config-color-input-container');
-
-		// Quick color picker from palette
-		if (showQuickPicker && this.settings && this.settings.colorPalettes.length > 0) {
-			const activePalette = this.settings.colorPalettes[this.settings.activePaletteIndex || 0];
-			if (activePalette && activePalette.colors.length > 0) {
-				const quickColors = inputContainer.createDiv();
-				quickColors.addClass('quick-color-picker-compact');
-				activePalette.colors.forEach(color => {
-					const swatch = quickColors.createDiv();
-					swatch.addClass('quick-color-swatch');
-					swatch.style.backgroundColor = color;
-					swatch.title = color;
-					swatch.onclick = () => {
-						(this.result as any)[colorKey] = color;
-						const input = inputContainer.querySelector('input') as HTMLInputElement;
-						if (input) input.value = color;
-						this.updatePreview().catch(console.error);
-					};
-				});
-			}
-		}
-
-		const input = inputContainer.createEl('input');
-		input.type = 'text';
-		input.placeholder = '#000000';
-		input.value = currentValue || '';
-		input.addClass('folder-config-input');
-		input.style.width = '80px';
-		input.oninput = (e) => {
-			(this.result as any)[colorKey] = (e.target as HTMLInputElement).value || undefined;
-			this.updatePreview().catch(console.error);
-		};
-	}
-
 
 	private async performSearch(): Promise<void> {
 		if (this.currentSource === 'custom') {

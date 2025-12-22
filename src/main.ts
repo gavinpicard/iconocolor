@@ -271,7 +271,7 @@ export default class IconocolorPlugin extends Plugin {
 		];
 	}
 
-	private async openFolderConfigModal(folderPath: string): Promise<void> {
+	private openFolderConfigModal(folderPath: string): void {
 		const currentConfig = this.settings.folderConfigs[folderPath] || {};
 
 		new FolderConfigModal(
@@ -324,7 +324,7 @@ class ProfileSwitchModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('iconocolor-profile-switch-modal');
 
-		contentEl.createEl('h2', { text: 'Switch Profile' });
+		contentEl.createEl('h2', { text: 'Switch profile' });
 
 		const profilesList = contentEl.createDiv('iconocolor-profiles-list');
 		
