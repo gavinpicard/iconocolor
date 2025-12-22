@@ -5,6 +5,7 @@ import { applyHSLTransformation, applyLightnessTransformation, getColorFilter } 
 import { ColorTransformation } from '../types';
 import { isLocalIcon } from '../utils/iconDownloader';
 import { getInstalledIconPacks, IconPack } from '../utils/iconPackManager';
+import { setCssProps } from '../utils/domUtils';
 
 export interface FolderConfigResult {
 	icon?: string;
@@ -264,7 +265,9 @@ export class FolderConfigModal extends Modal {
 		// Custom input
 		this.customInputContainer = container.createDiv();
 		this.customInputContainer.addClass('icon-picker-custom-input');
-		this.customInputContainer.style.display = this.currentSource === 'custom' ? 'block' : 'none';
+		setCssProps(this.customInputContainer, {
+			display: this.currentSource === 'custom' ? 'block' : 'none',
+		});
 
 		const customInput = this.customInputContainer.createEl('input');
 		customInput.type = 'text';
@@ -447,7 +450,9 @@ export class FolderConfigModal extends Modal {
 		input.value = this.result.baseColor || computedBaseColor || '';
 		input.addClass('folder-config-input');
 		input.addClass('folder-config-color-text-input');
-		input.style.width = '100px';
+		setCssProps(input, {
+			width: '100px',
+		});
 		input.oninput = (e: Event) => {
 			const value = (e.target as HTMLInputElement).value;
 			this.result.baseColor = value || undefined;
@@ -469,17 +474,21 @@ export class FolderConfigModal extends Modal {
 		if (baseColorToUse) {
 			const computedSection = container.createDiv();
 			computedSection.addClass('folder-config-computed-colors');
-			computedSection.style.marginTop = '8px';
-			computedSection.style.padding = '8px';
-			computedSection.style.background = 'var(--background-secondary)';
-			computedSection.style.borderRadius = '4px';
-			computedSection.style.border = '1px solid var(--background-modifier-border)';
+			setCssProps(computedSection, {
+				marginTop: '8px',
+				padding: '8px',
+				background: 'var(--background-secondary)',
+				borderRadius: '4px',
+				border: '1px solid var(--background-modifier-border)',
+			});
 			
 			const computedTitle = computedSection.createEl('p', { text: 'Computed colors' });
-			computedTitle.style.margin = '0 0 8px 0';
-			computedTitle.style.fontSize = '11px';
-			computedTitle.style.fontWeight = '500';
-			computedTitle.style.color = 'var(--text-muted)';
+			setCssProps(computedTitle, {
+				margin: '0 0 8px 0',
+				fontSize: '11px',
+				fontWeight: '500',
+				color: 'var(--text-muted)',
+			});
 			
 			// Icon color
 			if (this.settings) {
@@ -521,8 +530,6 @@ export class FolderConfigModal extends Modal {
 				'Icon',
 				'iconColor',
 				this.result.iconColor || iconComputed,
-				undefined, // autoColorValue
-				iconIsComputed ? `Currently computed from base: ${iconComputed}. Set a value to override.` : undefined
 			);
 			
 			// Folder background color
@@ -540,8 +547,6 @@ export class FolderConfigModal extends Modal {
 				'Background',
 				'folderColor',
 				this.result.folderColor || folderComputed,
-				undefined, // autoColorValue
-				folderIsComputed ? `Currently computed from base: ${folderComputed}. Set a value to override.` : undefined
 			);
 			
 			// Text color
@@ -559,8 +564,6 @@ export class FolderConfigModal extends Modal {
 				'Text',
 				'textColor',
 				this.result.textColor || textComputed,
-				undefined, // autoColorValue
-				textIsComputed ? `Currently computed from base: ${textComputed}. Set a value to override.` : undefined
 			);
 		}
 	}
@@ -570,26 +573,34 @@ export class FolderConfigModal extends Modal {
 	 */
 	private addComputedColorDisplay(container: HTMLElement, label: string, color: string): void {
 		const row = container.createDiv();
-		row.style.display = 'flex';
-		row.style.alignItems = 'center';
-		row.style.gap = '8px';
-		row.style.marginBottom = '4px';
+		setCssProps(row, {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '8px',
+			marginBottom: '4px',
+		});
 		
 		const labelEl = row.createEl('span', { text: label });
-		labelEl.style.fontSize = '12px';
-		labelEl.style.minWidth = '70px';
+		setCssProps(labelEl, {
+			fontSize: '12px',
+			minWidth: '70px',
+		});
 		
 		const colorDisplay = row.createDiv();
-		colorDisplay.style.width = '20px';
-		colorDisplay.style.height = '20px';
-		colorDisplay.style.borderRadius = '3px';
-		colorDisplay.style.border = '1px solid var(--background-modifier-border)';
-		colorDisplay.style.backgroundColor = color;
+		setCssProps(colorDisplay, {
+			width: '20px',
+			height: '20px',
+			borderRadius: '3px',
+			border: '1px solid var(--background-modifier-border)',
+			backgroundColor: color,
+		});
 		
 		const valueEl = row.createEl('span', { text: color });
-		valueEl.style.fontFamily = 'var(--font-monospace)';
-		valueEl.style.fontSize = '11px';
-		valueEl.style.color = 'var(--text-muted)';
+		setCssProps(valueEl, {
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '11px',
+			color: 'var(--text-muted)',
+		});
 	}
 
 	/**
@@ -612,35 +623,43 @@ export class FolderConfigModal extends Modal {
 		// Container for preview and buttons on the same line
 		const bottomContainer = contentEl.createDiv();
 		bottomContainer.addClass('folder-config-bottom-container');
-		bottomContainer.style.display = 'flex';
-		bottomContainer.style.alignItems = 'center';
-		bottomContainer.style.justifyContent = 'space-between';
-		bottomContainer.style.gap = '12px';
-		bottomContainer.style.marginTop = '12px';
-		bottomContainer.style.paddingTop = '12px';
-		bottomContainer.style.borderTop = '1px solid var(--background-modifier-border)';
+		setCssProps(bottomContainer, {
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'space-between',
+			gap: '12px',
+			marginTop: '12px',
+			paddingTop: '12px',
+			borderTop: '1px solid var(--background-modifier-border)',
+		});
 		
 		// Compact preview
 		this.previewEl = bottomContainer.createDiv();
 		this.previewEl.addClass('folder-config-preview-compact');
-		this.previewEl.style.display = 'flex';
-		this.previewEl.style.alignItems = 'center';
-		this.previewEl.style.gap = '8px';
-		this.previewEl.style.flex = '1';
+		setCssProps(this.previewEl, {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '8px',
+			flex: '1',
+		});
 		
 		const previewLabel = this.previewEl.createSpan();
 		previewLabel.setText('Preview:');
-		previewLabel.style.fontSize = '12px';
-		previewLabel.style.color = 'var(--text-muted)';
-		previewLabel.style.fontWeight = '500';
+		setCssProps(previewLabel, {
+			fontSize: '12px',
+			color: 'var(--text-muted)',
+			fontWeight: '500',
+		});
 		
 		const previewContent = this.previewEl.createDiv();
 		previewContent.addClass('folder-config-preview-content');
 		previewContent.addClass('tree-item-inner');
-		previewContent.style.padding = '6px 10px';
-		previewContent.style.minHeight = '28px';
-		previewContent.style.flex = '1';
-		previewContent.style.maxWidth = '250px';
+		setCssProps(previewContent, {
+			padding: '6px 10px',
+			minHeight: '28px',
+			flex: '1',
+			maxWidth: '250px',
+		});
 		this.previewIcon = previewContent.createDiv();
 		this.previewIcon.addClass('preview-icon');
 		this.previewIcon.addClass('iconocolor-custom-icon');
@@ -651,11 +670,13 @@ export class FolderConfigModal extends Modal {
 		// Buttons on the same line
 		const buttonContainer = bottomContainer.createDiv();
 		buttonContainer.addClass('folder-config-buttons');
-		buttonContainer.style.display = 'flex';
-		buttonContainer.style.gap = '8px';
-		buttonContainer.style.marginTop = '0';
-		buttonContainer.style.paddingTop = '0';
-		buttonContainer.style.borderTop = 'none';
+		setCssProps(buttonContainer, {
+			display: 'flex',
+			gap: '8px',
+			marginTop: '0',
+			paddingTop: '0',
+			borderTop: 'none',
+		});
 		buttonContainer.createEl('button', { text: 'Cancel', cls: 'mod-cta' }).onclick = () => this.close();
 		const applyButton = buttonContainer.createEl('button', { text: 'Apply', cls: 'mod-cta' });
 		applyButton.onclick = () => {
@@ -706,8 +727,6 @@ export class FolderConfigModal extends Modal {
 		label: string, 
 		colorKey: 'iconColor' | 'folderColor' | 'textColor', 
 		currentValue?: string,
-		autoColorValue?: string,
-		relativeDescription?: string
 	): void {
 		const colorRow = container.createDiv();
 		colorRow.addClass('folder-config-color-row');
@@ -728,13 +747,15 @@ export class FolderConfigModal extends Modal {
 			if (activePalette && activePalette.colors.length > 0) {
 				const quickColors = inputContainer.createDiv();
 				quickColors.addClass('quick-color-picker-compact');
-				activePalette.colors.forEach(color => {
-					const swatch = quickColors.createDiv();
-					swatch.addClass('quick-color-swatch');
-					swatch.style.backgroundColor = color;
-					swatch.title = color;
-					swatch.onclick = () => {
-						(this.result as any)[colorKey] = color;
+			activePalette.colors.forEach(color => {
+				const swatch = quickColors.createDiv();
+				swatch.addClass('quick-color-swatch');
+				setCssProps(swatch, {
+					backgroundColor: color,
+				});
+				swatch.title = color;
+				swatch.onclick = () => {
+					(this.result as any)[colorKey] = color;
 						// Clear base color when individual color is set
 						this.result.baseColor = undefined;
 						const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
@@ -770,7 +791,9 @@ export class FolderConfigModal extends Modal {
 		input.value = currentValue || '';
 		input.addClass('folder-config-input');
 		input.addClass('folder-config-color-text-input');
-		input.style.width = "100px";
+		setCssProps(input, {
+			width: '100px',
+		});
 
     input.oninput = (e: Event) => {
       const value = (e.target as HTMLInputElement).value;
@@ -857,7 +880,9 @@ export class FolderConfigModal extends Modal {
 		}
 
 		this.resultsContainer.empty();
-		this.resultsContainer.style.display = 'grid';
+		setCssProps(this.resultsContainer, {
+			display: 'grid',
+		});
 
 		// Only show "No icons found" if we actually have no results
 		if (!this.searchResults || this.searchResults.length === 0) {
@@ -981,8 +1006,12 @@ export class FolderConfigModal extends Modal {
 	}
 
 	private showCustomInput(): void {
-		this.resultsContainer.style.display = 'none';
-		this.customInputContainer.style.display = 'block';
+		setCssProps(this.resultsContainer, {
+			display: 'none',
+		});
+		setCssProps(this.customInputContainer, {
+			display: 'block',
+		});
 	}
 
 	private async updatePreview(): Promise<void> {
@@ -1032,12 +1061,12 @@ export class FolderConfigModal extends Modal {
 				const img = document.createElement('img');
 				img.src = this.result.icon;
 				img.alt = 'Preview';
-				img.style.width = '16px';
-				img.style.height = '16px';
-				img.style.display = 'block';
-				if (this.result.iconColor) {
-					img.style.filter = getColorFilter(this.result.iconColor);
-				}
+				setCssProps(img, {
+					width: '16px',
+					height: '16px',
+					display: 'block',
+					...(this.result.iconColor && { filter: getColorFilter(this.result.iconColor) }),
+				});
 				this.previewIcon.appendChild(img);
 			}
 		}
@@ -1058,7 +1087,9 @@ export class FolderConfigModal extends Modal {
 			if (folderColor) {
 				const opacity = (this.settings?.folderColorOpacity ?? 100) / 100;
 				const bgColor = this.hexToRgba(folderColor, opacity);
-				previewContent.style.backgroundColor = bgColor;
+				setCssProps(previewContent, {
+					backgroundColor: bgColor,
+				});
 			} else {
 				previewContent.style.removeProperty('background-color');
 			}
@@ -1070,7 +1101,9 @@ export class FolderConfigModal extends Modal {
 			}
 			
 			if (textColor) {
-				previewText.style.color = textColor;
+				setCssProps(previewText, {
+					color: textColor,
+				});
 			} else {
 				previewText.style.removeProperty('color');
 			}

@@ -5,6 +5,7 @@
 
 import { isLocalIcon } from './iconDownloader';
 import { getIconIds, TFile, setIcon, requestUrl } from 'obsidian';
+import { setCssProps } from './domUtils';
 
 export interface IconInfo {
 	name: string;
@@ -446,27 +447,35 @@ export function applyColorToSvg(svgContent: string, color?: string): string {
 		// Stroke-based icon (like Lucide) - use currentColor by default, then apply color
 		svg.setAttribute('fill', 'none');
 		svg.setAttribute('stroke', finalColor);
-		svg.style.fill = 'none';
-		svg.style.stroke = finalColor;
-		svg.style.color = finalColor;
+		setCssProps(svg, {
+			fill: 'none',
+			stroke: finalColor,
+			color: finalColor,
+		});
 		
 		allElements.forEach((el) => {
 			el.setAttribute('fill', 'none');
 			el.setAttribute('stroke', finalColor);
-			(el as HTMLElement).style.fill = 'none';
-			(el as HTMLElement).style.stroke = finalColor;
+			setCssProps(el as HTMLElement, {
+				fill: 'none',
+				stroke: finalColor,
+			});
 		});
 	} else {
 		// Fill-based icon - use currentColor by default, then apply color
 		svg.setAttribute('fill', finalColor);
-		svg.style.fill = finalColor;
-		svg.style.color = finalColor;
+		setCssProps(svg, {
+			fill: finalColor,
+			color: finalColor,
+		});
 		
 		allElements.forEach((el) => {
 			// Only set fill if element doesn't have stroke
 			if (!el.getAttribute('stroke') && !el.getAttribute('stroke-width')) {
 				el.setAttribute('fill', finalColor);
-				(el as HTMLElement).style.fill = finalColor;
+				setCssProps(el as HTMLElement, {
+					fill: finalColor,
+				});
 			}
 		});
 	}
@@ -489,27 +498,33 @@ export function renderIconAsSvg(
 ): Promise<HTMLElement> {
 	return new Promise(async (resolve) => {
 		const container = document.createElement('div');
-		container.style.width = `${size}px`;
-		container.style.height = `${size}px`;
-		container.style.display = 'inline-flex';
-		container.style.alignItems = 'center';
-		container.style.justifyContent = 'center';
-		container.style.flexShrink = '0';
+		setCssProps(container, {
+			width: `${size}px`,
+			height: `${size}px`,
+			display: 'inline-flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			flexShrink: '0',
+		});
 		
 		if (iconInfo.source === 'lucide') {
 			// Use Obsidian's built-in setIcon for Lucide icons
 			const iconDiv = document.createElement('div');
-			iconDiv.style.width = `${size}px`;
-			iconDiv.style.height = `${size}px`;
+			setCssProps(iconDiv, {
+				width: `${size}px`,
+				height: `${size}px`,
+			});
 			setIcon(iconDiv, iconInfo.name);
 			
 			// Apply color to the SVG
 			const svg = iconDiv.querySelector('svg');
 			if (svg) {
 				const finalColor = color || 'currentColor';
-				svg.style.color = finalColor;
-				svg.style.fill = 'none';
-				svg.style.stroke = finalColor;
+				setCssProps(svg, {
+					color: finalColor,
+					fill: 'none',
+					stroke: finalColor,
+				});
 				svg.setAttribute('fill', 'none');
 				svg.setAttribute('stroke', finalColor);
 				
@@ -518,8 +533,10 @@ export function renderIconAsSvg(
 				paths.forEach((path: Element) => {
 					path.setAttribute('fill', 'none');
 					path.setAttribute('stroke', finalColor);
-					(path as HTMLElement).style.fill = 'none';
-					(path as HTMLElement).style.stroke = finalColor;
+					setCssProps(path as HTMLElement, {
+						fill: 'none',
+						stroke: finalColor,
+					});
 				});
 			}
 			
@@ -532,9 +549,11 @@ export function renderIconAsSvg(
 				container.innerHTML = svgContent;
 				const svg = container.querySelector('svg');
 				if (svg) {
-					svg.style.width = `${size}px`;
-					svg.style.height = `${size}px`;
-					svg.style.color = color || 'currentColor';
+					setCssProps(svg, {
+						width: `${size}px`,
+						height: `${size}px`,
+						color: color || 'currentColor',
+					});
 					if (!svg.hasAttribute('width')) {
 						svg.setAttribute('width', `${size}`);
 					}

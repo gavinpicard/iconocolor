@@ -1,5 +1,5 @@
 import { Plugin, TFolder } from 'obsidian';
-import { FolderConfig, IconocolorSettings, DefaultIconRule, ColorTransformation } from './types';
+import { FolderConfig, IconocolorSettings, ColorTransformation } from './types';
 import { applyFolderStyles, getAllFolderElements, getFolderPathFromElement } from './utils/domUtils';
 import { generateGradientColors, generateRepeatingColors, applyHSLTransformation, applyLightnessTransformation, interpolateColor } from './utils/colorUtils';
 
@@ -44,7 +44,7 @@ export class FolderManager {
 		this.observer = new MutationObserver((mutations) => {
 			// Check if any mutation involves an input field (folder being renamed)
 			// If so, skip this update to prevent cursor jumping
-			const hasInputMutation = mutations.some(mutation => {
+			mutations.some(mutation => {
 				for (const node of Array.from(mutation.addedNodes).concat(Array.from(mutation.removedNodes))) {
 					if (node.nodeType === Node.ELEMENT_NODE) {
 						const element = node as HTMLElement;
@@ -108,7 +108,7 @@ export class FolderManager {
 
 		// Listen for rename events to apply styles after renaming completes
 		this.plugin.registerEvent(
-			this.plugin.app.vault.on('rename', (file, oldPath) => {
+			this.plugin.app.vault.on('rename', (file) => {
 				// After a folder is renamed, apply styles
 				if (file instanceof TFolder) {
 					this.invalidateRootFoldersCache();
@@ -421,7 +421,7 @@ export class FolderManager {
 	 * Apply gradient transformation: interpolate between parent's base color and next sibling's base color
 	 */
 	private applyGradientTransformation(parentBaseColor: string, childPath: string, parentPath: string): string {
-		const transformation = this.settings.childBaseTransformation;
+		this.settings.childBaseTransformation;
 		
 		// Get all children of the parent
 		const parentChildren = this.getChildrenFolders(parentPath);

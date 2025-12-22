@@ -24,7 +24,15 @@ export default [
       obsidianmd: obsidianmd,
     },
     rules: {
-      ...obsidianmd.configs.recommended,
+        "obsidianmd/ui/sentence-case": [
+          "warn",
+          {
+            brands: ["Iconocolor"],
+            acronyms: ["HSL", "URL", "SVG"],
+            enforceCamelCaseLower: true,
+          },
+        ],
+       ...obsidianmd.configs.recommended,
     },
   },
 ];

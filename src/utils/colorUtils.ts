@@ -50,7 +50,6 @@ export function generateGradientColors(palette: string[], count: number): string
 	
 	const colors: string[] = [];
 	const segments = palette.length - 1;
-	const colorsPerSegment = (count - 1) / segments;
 	
 	for (let i = 0; i < count; i++) {
 		const position = i / (count - 1);

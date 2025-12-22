@@ -47,7 +47,7 @@ export async function ensureIconsFolderExists(app: any): Promise<TFolder | null>
 	// Helper function to find the icons folder
 	const findIconsFolder = (): TFolder | null => {
 		// Try direct path lookup
-		let iconsFolder = app.vault.getAbstractFileByPath(iconsPath);
+		const iconsFolder = app.vault.getAbstractFileByPath(iconsPath);
 		if (iconsFolder instanceof TFolder) {
 			return iconsFolder;
 		}

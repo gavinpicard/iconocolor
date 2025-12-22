@@ -60,9 +60,9 @@ export default class IconocolorPlugin extends Plugin {
 			id: 'open-settings',
 			name: 'Open settings',
 			callback: () => {
-				// @ts-ignore - setting API may vary
+				// @ts-expect-error - setting API may vary
 				this.app.setting.open();
-				// @ts-ignore - setting API may vary
+				// @ts-expect-error - setting API may vary
 				this.app.setting.openTabById(this.manifest.id);
 			},
 		});

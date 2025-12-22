@@ -5,6 +5,7 @@ import { FolderConfigModal } from './folderConfigModal';
 import { getInstalledIconPacks, deleteIconPack, IconPack } from '../utils/iconPackManager';
 import { BrowsePacksModal } from './browsePacksModal';
 import { applyHSLTransformation, applyLightnessTransformation } from '../utils/colorUtils';
+import { setCssProps } from '../utils/domUtils';
 
 export class IconocolorSettingTab extends PluginSettingTab {
 	plugin: IconocolorPlugin;
@@ -444,7 +445,9 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					const countText = packSetting.descEl.createEl('span', {
 						text: ` • ${pack.iconCount.toLocaleString()} icons`,
 					});
-					countText.style.fontWeight = 'bold';
+					setCssProps(countText, {
+						fontWeight: 'bold',
+					});
 				}
 
 				packSetting.addButton(button => {
@@ -685,7 +688,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setDesc('Regular expression to match file or folder names')
 					.addText(text => {
 						text.setValue(this.rule.pattern);
-						text.setPlaceholder('e.g., ^Archive|^Assets')
+						text.setPlaceholder('E.g., ^Archive|^Assets')
 						text.onChange(value => {
 							this.rule.pattern = value;
 						});
@@ -805,46 +808,60 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		}
 		
 		const previewContent = previewSetting.controlEl;
-		previewContent.style.display = 'flex';
-		previewContent.style.alignItems = 'center';
-		previewContent.style.gap = '8px';
-		previewContent.style.flexWrap = 'wrap';
-		previewContent.style.width = '100%';
+		setCssProps(previewContent, {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '8px',
+			flexWrap: 'wrap',
+			width: '100%',
+		});
 		
 		// Base color swatch
 		const baseSwatch = previewContent.createDiv();
-		baseSwatch.style.display = 'flex';
-		baseSwatch.style.flexDirection = 'column';
-		baseSwatch.style.alignItems = 'center';
-		baseSwatch.style.gap = '3px';
+		setCssProps(baseSwatch, {
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+			gap: '3px',
+		});
 		
 		const baseColorBox = baseSwatch.createDiv();
-		baseColorBox.style.width = '36px';
-		baseColorBox.style.height = '36px';
-		baseColorBox.style.borderRadius = '4px';
-		baseColorBox.style.border = '1px solid var(--background-modifier-border)';
-		baseColorBox.style.backgroundColor = sampleBaseColor;
-		baseColorBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+		setCssProps(baseColorBox, {
+			width: '36px',
+			height: '36px',
+			borderRadius: '4px',
+			border: '1px solid var(--background-modifier-border)',
+			backgroundColor: sampleBaseColor,
+			boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+		});
 		
 		const baseLabel = baseSwatch.createEl('span', { text: 'Base' });
-		baseLabel.style.fontSize = '9px';
-		baseLabel.style.color = 'var(--text-muted)';
+		setCssProps(baseLabel, {
+			fontSize: '9px',
+			color: 'var(--text-muted)',
+		});
 		
 		const baseColorValue = baseSwatch.createEl('span', { text: sampleBaseColor });
-		baseColorValue.style.fontSize = '8px';
-		baseColorValue.style.fontFamily = 'var(--font-monospace)';
-		baseColorValue.style.color = 'var(--text-faint)';
+		setCssProps(baseColorValue, {
+			fontSize: '8px',
+			fontFamily: 'var(--font-monospace)',
+			color: 'var(--text-faint)',
+		});
 		
 		// Arrow
 		const arrow = previewContent.createEl('span', { text: '→' });
-		arrow.style.fontSize = '16px';
-		arrow.style.color = 'var(--text-muted)';
+		setCssProps(arrow, {
+			fontSize: '16px',
+			color: 'var(--text-muted)',
+		});
 		
 		// Transformed colors
 		const transformedContainer = previewContent.createDiv();
-		transformedContainer.style.display = 'flex';
-		transformedContainer.style.gap = '6px';
-		transformedContainer.style.flexWrap = 'wrap';
+		setCssProps(transformedContainer, {
+			display: 'flex',
+			gap: '6px',
+			flexWrap: 'wrap',
+		});
 		
 		const updatePreview = () => {
 			transformedContainer.empty();
@@ -873,31 +890,39 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	 */
 	private addColorPreview(container: HTMLElement, label: string, color: string, icon: string): void {
 		const preview = container.createDiv();
-		preview.style.display = 'flex';
-		preview.style.flexDirection = 'column';
-		preview.style.alignItems = 'center';
-		preview.style.gap = '3px';
+		setCssProps(preview, {
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+			gap: '3px',
+		});
 		
 		const colorBox = preview.createDiv();
-		colorBox.style.width = '36px';
-		colorBox.style.height = '36px';
-		colorBox.style.borderRadius = '4px';
-		colorBox.style.border = '1px solid var(--background-modifier-border)';
-		colorBox.style.backgroundColor = color;
-		colorBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
-		colorBox.style.display = 'flex';
-		colorBox.style.alignItems = 'center';
-		colorBox.style.justifyContent = 'center';
-		colorBox.style.fontSize = '14px';
+		setCssProps(colorBox, {
+			width: '36px',
+			height: '36px',
+			borderRadius: '4px',
+			border: '1px solid var(--background-modifier-border)',
+			backgroundColor: color,
+			boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+			display: 'flex',
+			alignItems: 'center',
+			justifyContent: 'center',
+			fontSize: '14px',
+		});
 		
 		const labelEl = preview.createEl('span', { text: label });
-		labelEl.style.fontSize = '9px';
-		labelEl.style.color = 'var(--text-muted)';
+		setCssProps(labelEl, {
+			fontSize: '9px',
+			color: 'var(--text-muted)',
+		});
 		
 		const colorValue = preview.createEl('span', { text: color });
-		colorValue.style.fontSize = '8px';
-		colorValue.style.fontFamily = 'var(--font-monospace)';
-		colorValue.style.color = 'var(--text-faint)';
+		setCssProps(colorValue, {
+			fontSize: '8px',
+			fontFamily: 'var(--font-monospace)',
+			color: 'var(--text-faint)',
+		});
 	}
 	
 	/**
@@ -949,46 +974,60 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		}
 		
 		const previewContent = previewSetting.controlEl;
-		previewContent.style.display = 'flex';
-		previewContent.style.alignItems = 'center';
-		previewContent.style.gap = '8px';
-		previewContent.style.flexWrap = 'wrap';
-		previewContent.style.width = '100%';
+		setCssProps(previewContent, {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '8px',
+			flexWrap: 'wrap',
+			width: '100%',
+		});
 		
 		// Parent color (static)
 		const parentSwatch = previewContent.createDiv();
-		parentSwatch.style.display = 'flex';
-		parentSwatch.style.flexDirection = 'column';
-		parentSwatch.style.alignItems = 'center';
-		parentSwatch.style.gap = '3px';
+		setCssProps(parentSwatch, {
+			display: 'flex',
+			flexDirection: 'column',
+			alignItems: 'center',
+			gap: '3px',
+		});
 		
 		const parentBox = parentSwatch.createDiv();
-		parentBox.style.width = '36px';
-		parentBox.style.height = '36px';
-		parentBox.style.borderRadius = '4px';
-		parentBox.style.border = '1px solid var(--background-modifier-border)';
-		parentBox.style.backgroundColor = parentColor;
-		parentBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+		setCssProps(parentBox, {
+			width: '36px',
+			height: '36px',
+			borderRadius: '4px',
+			border: '1px solid var(--background-modifier-border)',
+			backgroundColor: parentColor,
+			boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+		});
 		
 		const parentLabel = parentSwatch.createEl('span', { text: 'Parent' });
-		parentLabel.style.fontSize = '9px';
-		parentLabel.style.color = 'var(--text-muted)';
+		setCssProps(parentLabel, {
+			fontSize: '9px',
+			color: 'var(--text-muted)',
+		});
 		
 		const parentColorValue = parentSwatch.createEl('span', { text: parentColor });
-		parentColorValue.style.fontSize = '8px';
-		parentColorValue.style.fontFamily = 'var(--font-monospace)';
-		parentColorValue.style.color = 'var(--text-faint)';
+		setCssProps(parentColorValue, {
+			fontSize: '8px',
+			fontFamily: 'var(--font-monospace)',
+			color: 'var(--text-faint)',
+		});
 		
 		// Arrow (static)
 		const arrow = previewContent.createEl('span', { text: '→' });
-		arrow.style.fontSize = '16px';
-		arrow.style.color = 'var(--text-muted)';
+		setCssProps(arrow, {
+			fontSize: '16px',
+			color: 'var(--text-muted)',
+		});
 		
 		// Child colors container (will be updated)
 		const childContainer = previewContent.createDiv();
-		childContainer.style.display = 'flex';
-		childContainer.style.gap = '6px';
-		childContainer.style.flexWrap = 'wrap';
+		setCssProps(childContainer, {
+			display: 'flex',
+			gap: '6px',
+			flexWrap: 'wrap',
+		});
 		
 		const updatePreview = () => {
 			childContainer.empty();
@@ -1022,27 +1061,35 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				currentColor = childBaseColor;
 				
 				const childSwatch = childContainer.createDiv();
-				childSwatch.style.display = 'flex';
-				childSwatch.style.flexDirection = 'column';
-				childSwatch.style.alignItems = 'center';
-				childSwatch.style.gap = '3px';
+				setCssProps(childSwatch, {
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					gap: '3px',
+				});
 				
 				const childBox = childSwatch.createDiv();
-				childBox.style.width = '36px';
-				childBox.style.height = '36px';
-				childBox.style.borderRadius = '4px';
-				childBox.style.border = '1px solid var(--background-modifier-border)';
-				childBox.style.backgroundColor = childBaseColor;
-				childBox.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
+				setCssProps(childBox, {
+					width: '36px',
+					height: '36px',
+					borderRadius: '4px',
+					border: '1px solid var(--background-modifier-border)',
+					backgroundColor: childBaseColor,
+					boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+				});
 				
 				const childLabel = childSwatch.createEl('span', { text: `C${i + 1}` });
-				childLabel.style.fontSize = '9px';
-				childLabel.style.color = 'var(--text-muted)';
+				setCssProps(childLabel, {
+					fontSize: '9px',
+					color: 'var(--text-muted)',
+				});
 				
 				const childColorValue = childSwatch.createEl('span', { text: childBaseColor });
-				childColorValue.style.fontSize = '8px';
-				childColorValue.style.fontFamily = 'var(--font-monospace)';
-				childColorValue.style.color = 'var(--text-faint)';
+				setCssProps(childColorValue, {
+					fontSize: '8px',
+					fontFamily: 'var(--font-monospace)',
+					color: 'var(--text-faint)',
+				});
 			}
 		};
 		

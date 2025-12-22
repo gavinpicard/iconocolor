@@ -5,6 +5,20 @@ import { renderIconAsSvg, isLucideIcon, getLucideIconName, getLucideIconUrl } fr
 import { getColorFilter } from './colorUtils';
 
 /**
+ * Set CSS properties on an element using setProperty for better theming and maintainability
+ * This is the Obsidian-recommended way to set styles
+ */
+export function setCssProps(element: HTMLElement | SVGElement, props: Partial<CSSStyleDeclaration>): void {
+	for (const [key, value] of Object.entries(props)) {
+		if (value !== undefined && value !== null) {
+			// Convert camelCase to kebab-case for CSS properties
+			const cssProperty = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+			element.style.setProperty(cssProperty, String(value));
+		}
+	}
+}
+
+/**
  * Convert hex color to rgba string with opacity
  */
 function hexToRgba(hex: string, opacity: number): string {
@@ -34,9 +48,6 @@ export function applyFolderStyles(
 	const folderIcon = element.querySelector('.nav-folder-title-icon') as HTMLElement;
 	
 	if (!folderName) return;
-
-	// Track current state to avoid unnecessary updates
-	const hasConfig = config && (config.folderColor || config.textColor || config.icon);
 
 	// Apply folder background color with opacity
 	// We need to apply the class and CSS variable to the folder title element itself,
@@ -104,9 +115,11 @@ export function applyFolderStyles(
 					
 					if (hasStroke) {
 						// Stroke-based icon
-						svg.style.color = finalColor;
-						svg.style.fill = 'none';
-						svg.style.stroke = finalColor;
+						setCssProps(svg, {
+							color: finalColor,
+							fill: 'none',
+							stroke: finalColor,
+						});
 						svg.setAttribute('fill', 'none');
 						svg.setAttribute('stroke', finalColor);
 						
@@ -114,13 +127,17 @@ export function applyFolderStyles(
 						paths.forEach((path: Element) => {
 							path.setAttribute('fill', 'none');
 							path.setAttribute('stroke', finalColor);
-							(path as HTMLElement).style.fill = 'none';
-							(path as HTMLElement).style.stroke = finalColor;
+							setCssProps(path as HTMLElement, {
+								fill: 'none',
+								stroke: finalColor,
+							});
 						});
 					} else {
 						// Fill-based icon
-						svg.style.color = finalColor;
-						svg.style.fill = finalColor;
+						setCssProps(svg, {
+							color: finalColor,
+							fill: finalColor,
+						});
 						svg.setAttribute('fill', finalColor);
 						
 						const paths = svg.querySelectorAll('path, circle, rect, ellipse, polygon, polyline');
@@ -128,7 +145,9 @@ export function applyFolderStyles(
 							// Only set fill if element doesn't have stroke
 							if (!path.getAttribute('stroke') && !path.getAttribute('stroke-width')) {
 								path.setAttribute('fill', finalColor);
-								(path as HTMLElement).style.fill = finalColor;
+								setCssProps(path as HTMLElement, {
+									fill: finalColor,
+								});
 							}
 						});
 					}
@@ -143,21 +162,27 @@ export function applyFolderStyles(
 			// Update SVG/image size if present
 			const svg = existingIcon.querySelector('svg');
 			if (svg) {
-				svg.style.width = expectedIconSize;
-				svg.style.height = expectedIconSize;
+				setCssProps(svg, {
+					width: expectedIconSize,
+					height: expectedIconSize,
+				});
 				svg.setAttribute('width', String(iconSize));
 				svg.setAttribute('height', String(iconSize));
 			}
 			const img = existingIcon.querySelector('img');
 			if (img) {
-				img.style.width = expectedIconSize;
-				img.style.height = expectedIconSize;
+				setCssProps(img, {
+					width: expectedIconSize,
+					height: expectedIconSize,
+				});
 			}
 			// Also update the wrapper div if it exists
 			const wrapper = existingIcon.querySelector('div[style*="width"]');
 			if (wrapper) {
-				(wrapper as HTMLElement).style.width = expectedIconSize;
-				(wrapper as HTMLElement).style.height = expectedIconSize;
+				setCssProps(wrapper as HTMLElement, {
+					width: expectedIconSize,
+					height: expectedIconSize,
+				});
 			}
 			return; // Size updated, no need to recreate icon
 		}
@@ -216,12 +241,14 @@ export function applyFolderStyles(
 					const iconElement = document.createElement('div');
 					iconElement.className = `${pluginId}-custom-icon`;
 					iconElement.style.setProperty('--icon-size', `${iconSize}px`);
-					iconElement.style.width = `${iconSize}px`;
-					iconElement.style.height = `${iconSize}px`;
-					iconElement.style.display = 'inline-flex';
-					iconElement.style.alignItems = 'center';
-					iconElement.style.justifyContent = 'center';
-					iconElement.style.flexShrink = '0';
+					setCssProps(iconElement, {
+						width: `${iconSize}px`,
+						height: `${iconSize}px`,
+						display: 'inline-flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						flexShrink: '0',
+					});
 					
 					// Use Obsidian's setIcon for Lucide icons (synchronous)
 					setIcon(iconElement, iconInfo.name);
@@ -230,9 +257,11 @@ export function applyFolderStyles(
 					const svg = iconElement.querySelector('svg');
 					if (svg) {
 						const finalColor = config.iconColor || 'currentColor';
-						svg.style.color = finalColor;
-						svg.style.fill = 'none';
-						svg.style.stroke = finalColor;
+						setCssProps(svg, {
+							color: finalColor,
+							fill: 'none',
+							stroke: finalColor,
+						});
 						svg.setAttribute('fill', 'none');
 						svg.setAttribute('stroke', finalColor);
 						
@@ -241,8 +270,10 @@ export function applyFolderStyles(
 						paths.forEach((path: Element) => {
 							path.setAttribute('fill', 'none');
 							path.setAttribute('stroke', finalColor);
-							(path as HTMLElement).style.fill = 'none';
-							(path as HTMLElement).style.stroke = finalColor;
+							setCssProps(path as HTMLElement, {
+								fill: 'none',
+								stroke: finalColor,
+							});
 						});
 					}
 					
@@ -275,10 +306,12 @@ export function applyFolderStyles(
 				const placeholder = document.createElement('span');
 				placeholder.className = `${pluginId}-custom-icon ${pluginId}-icon-placeholder`;
 				placeholder.style.setProperty('--icon-size', `${iconSize}px`);
-				placeholder.style.width = `${iconSize}px`;
-				placeholder.style.height = `${iconSize}px`;
-				placeholder.style.display = 'inline-flex';
-				placeholder.style.flexShrink = '0';
+				setCssProps(placeholder, {
+					width: `${iconSize}px`,
+					height: `${iconSize}px`,
+					display: 'inline-flex',
+					flexShrink: '0',
+				});
 				placeholder.setAttribute('data-icon-path', currentIconData);
 				
 				const textNode = Array.from(folderName.childNodes).find(node => 
@@ -350,9 +383,11 @@ export function applyFolderStyles(
 			iconEl.innerHTML = config.icon;
 			const svg = iconEl.querySelector('svg');
 			if (svg) {
-				svg.style.width = `${iconSize}px`;
-				svg.style.height = `${iconSize}px`;
-				svg.style.color = config.iconColor || 'currentColor';
+				setCssProps(svg, {
+					width: `${iconSize}px`,
+					height: `${iconSize}px`,
+					color: config.iconColor || 'currentColor',
+				});
 				if (!svg.hasAttribute('width')) {
 					svg.setAttribute('width', `${iconSize}`);
 				}
@@ -381,12 +416,12 @@ export function applyFolderStyles(
 			const img = document.createElement('img');
 			img.src = config.icon;
 			img.alt = '';
-			img.style.width = `${iconSize}px`;
-			img.style.height = `${iconSize}px`;
-			img.style.display = 'block';
-			if (config.iconColor) {
-				img.style.filter = getColorFilter(config.iconColor);
-			}
+			setCssProps(img, {
+				width: `${iconSize}px`,
+				height: `${iconSize}px`,
+				display: 'block',
+				...(config.iconColor && { filter: getColorFilter(config.iconColor) }),
+			});
 			iconEl.appendChild(img);
 			
 			// Insert icon at the beginning of folder name
