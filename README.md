@@ -34,7 +34,7 @@ An all-in-one Obsidian plugin for customizing folder icons, icon colors, and fol
 
 - View all configured folders in **Settings → Iconocolor**
 - Edit or remove configurations from the settings tab
-- Right-click a configured folder and select **"Remove icon and colors"** to clear its configuration
+- Right-click a configured folder and select **"Remove Icon and Colors"** to clear its configuration
 
 ### Color Palettes and Auto-Coloring
 
@@ -102,35 +102,13 @@ Root folder: Base = #3B82F6 (blue)
 **Example with Gradient Mode:**
 ```
 Root folder: Base = #3B82F6 (blue)
-Next sibling: Base = #EC4899 (pink)
   ├─ Child 1: Base = interpolated between blue and pink (step 1), then transformed
   ├─ Child 2: Base = interpolated between blue and pink (step 2), then transformed
   └─ Child 3: Base = interpolated between blue and pink (step 3), then transformed
+Next sibling: Base = #EC4899 (pink)
 ```
 
 The gradient automatically distributes across all children, creating smooth color transitions.
-
-## Icon Sources
-
-The plugin supports multiple icon sources:
-
-### Built-in Icon Libraries
-- **Lucide Icons**: Built into Obsidian, no download required. Includes hundreds of icons like folder, file, home, settings, etc.
-
-### Custom Icons
-- **SVG files**: Best for icons as they can be colored easily
-- **PNG/JPG files**: Supported but colorization may be limited
-- **URLs**: Any web-accessible image URL
-- **Local paths**: Paths relative to your vault or absolute paths
-
-## Color Formats
-
-All colors should be in hex format:
-- `#FF0000` (red)
-- `#00FF00` (green)
-- `#0000FF` (blue)
-- `#FFFFFF` (white)
-- etc.
 
 ## Development
 
@@ -153,22 +131,6 @@ This will watch for changes and automatically rebuild the plugin.
 ```bash
 npm run build
 ```
-
-## How It Works
-
-The plugin uses a sophisticated color system:
-
-1. **Base Color Assignment**: Each folder gets a base color (explicit, inherited, or from palette)
-2. **Color Transformations**: Base transformations derive icon, folder, and text colors from the base color
-3. **Child Inheritance**: Child folders inherit and transform their parent's base color using child base transformations
-4. **DOM Observation**: The plugin observes the file explorer DOM and applies styles in real-time
-5. **Configuration Storage**: All settings are stored in the plugin's data file
-
-The transformation system allows you to:
-- Create cohesive color schemes across your folder structure
-- Automatically generate contrasting colors for readability
-- Build visual hierarchies through cumulative color transformations
-- Experiment with different color schemes using profiles
 
 ## License
 
