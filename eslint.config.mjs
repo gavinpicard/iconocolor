@@ -30,6 +30,11 @@ export default [
             brands: ["Iconocolor"],
             acronyms: ["HSL", "URL", "SVG"],
             enforceCamelCaseLower: true,
+            // Allow dropdown option labels to start with capital letters
+            ignorePatterns: [
+              "^None \\(.*\\)$", // "None (same as base)", "None (no inheritance)"
+              "^[A-Z].*adjustment$", // "Lightness adjustment", "HSL transformation"
+            ],
           },
         ],
        ...obsidianmd.configs.recommended,

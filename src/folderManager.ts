@@ -1,5 +1,5 @@
 import { Plugin, TFolder } from 'obsidian';
-import { FolderConfig, IconocolorSettings, ColorTransformation } from './types';
+import { FolderConfig, IconocolorSettings, ColorTransformation, FolderConfigWithDeletions } from './types';
 import { applyFolderStyles, getAllFolderElements, getFolderPathFromElement } from './utils/domUtils';
 import { generateGradientColors, generateRepeatingColors, applyHSLTransformation, applyLightnessTransformation, interpolateColor } from './utils/colorUtils';
 
@@ -421,8 +421,6 @@ export class FolderManager {
 	 * Apply gradient transformation: interpolate between parent's base color and next sibling's base color
 	 */
 	private applyGradientTransformation(parentBaseColor: string, childPath: string, parentPath: string): string {
-		this.settings.childBaseTransformation;
-		
 		// Get all children of the parent
 		const parentChildren = this.getChildrenFolders(parentPath);
 		
@@ -644,6 +642,21 @@ export class FolderManager {
 		// Merge with existing config, only updating properties that are explicitly set
 		const existing = this.settings.folderConfigs[path] || {};
 		const merged: FolderConfig = { ...existing };
+		const configWithDeletions = config as FolderConfigWithDeletions;
+		
+		// Handle explicit deletions (marked with __delete* flags)
+		if (configWithDeletions.__deleteBaseColor) {
+			delete merged.baseColor;
+		}
+		if (configWithDeletions.__deleteIconColor) {
+			delete merged.iconColor;
+		}
+		if (configWithDeletions.__deleteFolderColor) {
+			delete merged.folderColor;
+		}
+		if (configWithDeletions.__deleteTextColor) {
+			delete merged.textColor;
+		}
 		
 		// Only update properties that are explicitly provided (not undefined)
 		if (config.icon !== undefined) merged.icon = config.icon;

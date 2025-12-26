@@ -3,8 +3,7 @@
  * Based on obsidian-iconize approach
  */
 
-import { isLocalIcon } from './iconDownloader';
-import { getIconIds, TFile, setIcon, requestUrl } from 'obsidian';
+import { App, getIconIds, TFile, setIcon } from 'obsidian';
 import { setCssProps } from './domUtils';
 
 export interface IconInfo {
@@ -18,15 +17,15 @@ export interface IconInfo {
 }
 
 // Cache for icon lists - keyed by app instance
-const iconCache = new WeakMap<any, { icons: IconInfo[]; timestamp: number }>();
+const iconCache = new WeakMap<App, { icons: IconInfo[]; timestamp: number }>();
 // Cache for native Lucide icons (they don't change, so cache indefinitely)
-const nativeLucideIconsCache = new WeakMap<any, IconInfo[]>();
+const nativeLucideIconsCache = new WeakMap<App, IconInfo[]>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Clear the icon cache (call this when icon packs are added/removed)
  */
-export function clearIconCache(app?: any): void {
+export function clearIconCache(app?: App): void {
 	if (app) {
 		// Clear cache for specific app instance
 		iconCache.delete(app);
@@ -51,7 +50,7 @@ export function getLucideIconUrl(iconName: string): string {
 /**
  * Get native Lucide icons from Obsidian (cached)
  */
-function getNativeLucideIcons(app: any): IconInfo[] {
+function getNativeLucideIcons(app: App): IconInfo[] {
 	// Check cache first
 	if (nativeLucideIconsCache.has(app)) {
 		return nativeLucideIconsCache.get(app)!;
@@ -98,7 +97,7 @@ function getNativeLucideIcons(app: any): IconInfo[] {
  * Results are cached to avoid repeated file system scans
  * Also includes native Lucide icons in the cache
  */
-export async function getAllIconsFromPacks(app: any, forceRefresh: boolean = false): Promise<IconInfo[]> {
+export async function getAllIconsFromPacks(app: App, forceRefresh: boolean = false): Promise<IconInfo[]> {
 		// Check cache first
 		const now = Date.now();
 		if (!forceRefresh && iconCache.has(app)) {
@@ -112,7 +111,8 @@ export async function getAllIconsFromPacks(app: any, forceRefresh: boolean = fal
 	const icons: IconInfo[] = [];
 	
 	try {
-		const iconsPath = '.obsidian/icons';
+		const configDir = app.vault.configDir;
+		const iconsPath = `${configDir}/icons`;
 		
 		// Check if icons folder exists
 		if (!(await app.vault.adapter.exists(iconsPath))) {
@@ -227,7 +227,7 @@ export async function getAllIconsFromPacks(app: any, forceRefresh: boolean = fal
 export async function searchIcons(
 	query: string,
 	source: 'lucide' | 'simpleicons' | 'all' | 'local' | 'custom' | string = 'all',
-	app?: any
+	app?: App
 ): Promise<IconInfo[]> {
 	if (!app) {
 		return [];
@@ -325,7 +325,7 @@ function isValidFilePath(filePath: string): boolean {
  * Works with both regular vault files and .obsidian folder files
  */
 export async function loadSvgWithColor(
-	app: any,
+	app: App,
 	filePath: string,
 	color?: string
 ): Promise<string | null> {
@@ -344,7 +344,7 @@ export async function loadSvgWithColor(
 			if (file instanceof TFile) {
 				svgContent = await app.vault.read(file);
 			}
-		} catch (e) {
+		} catch {
 			// If getAbstractFileByPath fails (e.g., for .obsidian folder), try adapter directly
 		}
 		
@@ -494,7 +494,7 @@ export function renderIconAsSvg(
 	iconInfo: IconInfo | { name: string; displayName: string; source: 'lucide' | 'local' | 'pack' | 'simpleicons'; path?: string; url?: string },
 	size: number,
 	color?: string,
-	app?: any
+	app?: App
 ): Promise<HTMLElement> {
 	return new Promise(async (resolve) => {
 		const container = document.createElement('div');

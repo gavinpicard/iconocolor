@@ -98,7 +98,6 @@
 	height: 100%;
 	object-fit: contain;
 	display: block;
-	vertical-align: middle;
 }
 
 /* Icon picker preview */
@@ -169,7 +168,7 @@
 .folder-config-tabs {
 	display: flex;
 	gap: 6px;
-	margin-bottom: 16px;
+	margin-bottom: 12px;
 	border: none;
 }
 
@@ -200,17 +199,26 @@
 .folder-config-tab-content {
 	position: relative;
 	min-height: 300px;
-	margin-top: 8px;
+	margin-top: 6px;
 }
 
 /* Reduce spacing in settings */
 .folder-config-toggle-row .setting-item {
 	margin-bottom: 0;
+	padding: 4px 0;
 }
 
 .folder-config-toggle-row .setting-item-description {
 	margin-top: 0;
 	margin-bottom: 0;
+}
+
+.folder-config-toggle-row .setting-item-name {
+	font-size: 13px;
+}
+
+.folder-config-toggle-row .setting-item-control {
+	padding-top: 0;
 }
 
 .folder-config-tab-pane {
@@ -219,6 +227,25 @@
 
 .folder-config-tab-pane.is-active {
 	display: block;
+}
+
+/* Compact settings in colors tab */
+.folder-config-tab-pane .setting-item {
+	margin-bottom: 6px;
+	padding: 4px 0;
+}
+
+.folder-config-tab-pane .setting-item-name {
+	font-size: 13px;
+}
+
+.folder-config-tab-pane .setting-item-description {
+	font-size: 12px;
+	margin-top: 2px;
+}
+
+.folder-config-tab-pane .setting-item-control {
+	padding-top: 0;
 }
 
 /* Larger icon search */
@@ -245,7 +272,7 @@
 
 /* Modal header */
 .folder-config-header {
-	margin-bottom: 20px;
+	margin-bottom: 16px;
 }
 
 .folder-config-header h2 {
@@ -262,9 +289,23 @@
 }
 
 /* Color input improvements */
-.folder-config-color-row {
+.folder-config-color-section {
+	margin-bottom: 8px;
+}
+
+.folder-config-base-color-section {
 	margin-bottom: 12px;
-	padding: 8px;
+}
+
+.folder-config-individual-colors-section {
+	margin-left: 16px;
+	padding-left: 12px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.folder-config-color-row {
+	margin-bottom: 6px;
+	padding: 6px 8px;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
@@ -275,16 +316,21 @@
 	border-color: var(--background-modifier-border-hover);
 }
 
+.folder-config-individual-color-row {
+	background: var(--background-primary);
+	border-color: var(--background-modifier-border);
+}
+
 .folder-config-color-label-container {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	margin-bottom: 12px;
+	gap: 6px;
+	margin-bottom: 6px;
 	flex-wrap: wrap;
 }
 
 .folder-config-color-label {
-	font-size: 14px;
+	font-size: 12px;
 	font-weight: 500;
 	color: var(--text-normal);
 	margin: 0;
@@ -312,10 +358,75 @@
 	color: var(--text-muted);
 }
 
+/* Unified color control badges */
+.folder-config-badge {
+	font-size: 9px;
+	padding: 2px 6px;
+	border-radius: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	line-height: 1.2;
+	margin-left: 6px;
+}
+
+.folder-config-badge-auto {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.folder-config-badge-manual {
+	background-color: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.folder-config-badge-override {
+	background-color: #ff9800;
+	color: var(--text-on-accent);
+}
+
+/* Computed color display */
+.folder-config-computed-display {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.folder-config-computed-swatch {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.folder-config-computed-text {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	color: var(--text-muted);
+}
+
+/* Revert button */
+.folder-config-revert-button {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+	font-weight: 500;
+}
+
+.folder-config-revert-button:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
 .folder-config-color-input-container {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 8px;
 	flex-wrap: wrap;
 }
 
@@ -340,12 +451,62 @@
 
 .folder-config-color-text-input {
 	font-family: var(--font-monospace);
-	font-size: 13px;
+	font-size: 12px;
+	padding: 4px 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	width: 70px;
+	flex-shrink: 0;
+}
+
+.folder-config-color-text-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+/* Circular color picker styling */
+.folder-config-color-input-container input[type="color"] {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	overflow: hidden;
+	padding: 0;
+	margin: 0;
+}
+
+.folder-config-color-input-container input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	overflow: hidden;
+}
+
+.folder-config-color-input-container input[type="color"]::-webkit-color-swatch {
+	border: none;
+	border-radius: 50%;
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.folder-config-color-input-container input[type="color"]::-moz-color-swatch {
+	border: none;
+	border-radius: 50%;
+	padding: 0;
+	margin: 0;
+	width: 100%;
+	height: 100%;
 }
 
 .folder-config-toggle-row {
-	margin-top: 20px;
-	padding-top: 20px;
+	margin-top: 12px;
+	padding-top: 12px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 

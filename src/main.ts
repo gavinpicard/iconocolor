@@ -1,5 +1,5 @@
 import { Plugin, TFolder, Modal, Notice, App } from 'obsidian';
-import { IconocolorSettings, FolderConfig, SettingsProfile } from './types';
+import { IconocolorSettings, FolderConfig, SettingsProfile, FolderConfigWithDeletions } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { FolderManager } from './folderManager';
 import { IconocolorSettingTab } from './ui/settingsTab';
@@ -279,22 +279,34 @@ export default class IconocolorPlugin extends Plugin {
 			currentConfig,
 			this.settings,
 			async (result) => {
-				// Only save explicitly set values (not undefined)
-				// This ensures computed values aren't saved as explicit values
-				// IMPORTANT: Only properties that were actually changed should be included
+				// Build config with explicitly set values and track deletions
 				const config: FolderConfig = {};
+				const originalConfig = currentConfig || {};
 				
-				// Only include properties that are explicitly set (not undefined)
-				// Note: inheritBaseColor can be false, which is a valid value, so we check !== undefined
+				// Include properties that are explicitly set (not undefined)
 				if (result.icon !== undefined) config.icon = result.icon;
 				if (result.baseColor !== undefined) config.baseColor = result.baseColor;
 				if (result.iconColor !== undefined) config.iconColor = result.iconColor;
 				if (result.folderColor !== undefined) config.folderColor = result.folderColor;
 				if (result.textColor !== undefined) config.textColor = result.textColor;
 				if (result.applyToSubfolders !== undefined) config.applyToSubfolders = result.applyToSubfolders;
-				// inheritBaseColor can be false, so we need to explicitly check if it was set
-				// The modal always sets this value (defaults to true), so it should always be defined
 				if (result.inheritBaseColor !== undefined) config.inheritBaseColor = result.inheritBaseColor;
+				
+				// Explicitly delete properties that existed in original but are now undefined
+				// This handles the case where user reverts a color - we need to delete it
+				const configWithDeletions = config as FolderConfigWithDeletions;
+				if (originalConfig.baseColor !== undefined && result.baseColor === undefined) {
+					configWithDeletions.__deleteBaseColor = true;
+				}
+				if (originalConfig.iconColor !== undefined && result.iconColor === undefined) {
+					configWithDeletions.__deleteIconColor = true;
+				}
+				if (originalConfig.folderColor !== undefined && result.folderColor === undefined) {
+					configWithDeletions.__deleteFolderColor = true;
+				}
+				if (originalConfig.textColor !== undefined && result.textColor === undefined) {
+					configWithDeletions.__deleteTextColor = true;
+				}
 
 				await this.folderManager.setFolderConfig(folderPath, config);
 			},

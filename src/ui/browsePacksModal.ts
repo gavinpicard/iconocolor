@@ -1,4 +1,4 @@
-import { App, Modal, Setting, Notice } from 'obsidian';
+import { App, Modal, Setting, Notice, TFolder } from 'obsidian';
 import { PREDEFINED_ICON_PACKS, PredefinedIconPack, downloadIconPack } from '../utils/iconPackManager';
 import { getInstalledIconPacks } from '../utils/iconPackManager';
 import { getAllIconsFromPacks } from '../utils/iconService';
@@ -144,11 +144,11 @@ export class BrowsePacksModal extends Modal {
 								await this.app.vault.adapter.exists(packPath);
 								// Trigger a refresh by accessing the folder
 								const packFolder = this.app.vault.getAbstractFileByPath(packPath);
-								if (packFolder) {
+								if (packFolder instanceof TFolder) {
 									// Access children to force refresh
-									(packFolder as any).children;
+									void packFolder.children;
 								}
-							} catch (e) {
+							} catch {
 								// Ignore errors, just trying to refresh cache
 							}
 							

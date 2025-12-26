@@ -4,10 +4,6 @@ import { isLocalIcon } from './iconDownloader';
 import { renderIconAsSvg, isLucideIcon, getLucideIconName, getLucideIconUrl } from './iconService';
 import { getColorFilter } from './colorUtils';
 
-/**
- * Set CSS properties on an element using setProperty for better theming and maintainability
- * This is the Obsidian-recommended way to set styles
- */
 export function setCssProps(element: HTMLElement | SVGElement, props: Partial<CSSStyleDeclaration>): void {
 	for (const [key, value] of Object.entries(props)) {
 		if (value !== undefined && value !== null) {
@@ -223,7 +219,7 @@ export function applyFolderStyles(
 				source: 'lucide',
 				url: getLucideIconUrl(iconName),
 			};
-		} else if (isLocalIcon(config.icon) && app) {
+		} else if (isLocalIcon(config.icon, app) && app) {
 			iconInfo = {
 				name: config.icon.split('/').pop()?.replace('.svg', '') || '',
 				displayName: config.icon.split('/').pop() || '',
@@ -335,7 +331,7 @@ export function applyFolderStyles(
 							return; // Another call changed the icon, abort
 						}
 						
-						const iconElement = await renderIconAsSvg(iconInfo as any, iconSize, config.iconColor, app);
+						const iconElement = await renderIconAsSvg(iconInfo, iconSize, config.iconColor, app);
 						
 						// Check if iconElement actually has content (SVG or img) - don't insert empty containers
 						const hasContent = iconElement.querySelector('svg') || iconElement.querySelector('img') || iconElement.innerHTML.trim().length > 0;

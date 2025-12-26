@@ -28,8 +28,8 @@ export class FolderConfigModal extends Modal {
 	private selectedIcon: IconInfo | null = null;
 	private settings: IconocolorSettings | undefined;
 	private folderPath: string | undefined;
-	private useBaseColorControl: boolean = true; // Toggle between base color and individual colors
 	private searchTimeout: number | null = null; // For debouncing search
+	private originalConfig: FolderConfig | undefined; // Track original config to detect deletions
 
 	// UI elements
 	private resultsContainer: HTMLElement;
@@ -42,6 +42,7 @@ export class FolderConfigModal extends Modal {
 	constructor(app: App, currentConfig?: FolderConfig, settings?: IconocolorSettings, onSubmit?: (result: FolderConfigResult) => void, folderPath?: string) {
 		super(app);
 		this.folderPath = folderPath;
+		this.originalConfig = currentConfig ? { ...currentConfig } : undefined;
 		
 		if (currentConfig) {
 			this.result.icon = currentConfig.icon;
@@ -51,9 +52,6 @@ export class FolderConfigModal extends Modal {
 			this.result.textColor = currentConfig.textColor;
 			this.result.applyToSubfolders = currentConfig.applyToSubfolders || false;
 			this.result.inheritBaseColor = currentConfig.inheritBaseColor !== undefined ? currentConfig.inheritBaseColor : true;
-			
-			// Determine control mode: if baseColor is set, use base control; otherwise use individual
-			this.useBaseColorControl = currentConfig.baseColor !== undefined;
 
 			if (currentConfig.icon) {
 				if (isLucideIcon(currentConfig.icon)) {
@@ -64,7 +62,7 @@ export class FolderConfigModal extends Modal {
 						source: 'lucide',
 						url: currentConfig.icon,
 					};
-				} else if (isLocalIcon(currentConfig.icon)) {
+				} else if (isLocalIcon(currentConfig.icon, this.app)) {
 					// Check if it's from an icon pack
 					const pathParts = currentConfig.icon.split('/');
 					if (pathParts.length >= 3 && pathParts[1] === 'icons') {
@@ -289,49 +287,10 @@ export class FolderConfigModal extends Modal {
 			return;
 		}
 		
-		// Toggle between base color control and individual colors
-		const controlModeRow = container.createDiv();
-		controlModeRow.addClass('folder-config-toggle-row');
-		
-		new Setting(controlModeRow)
-			.setName('Control mode')
-			.setDesc('')
-			.addDropdown(dropdown => {
-				dropdown
-					.addOption('base', 'Base color')
-					.addOption('individual', 'Individual colors');
-				dropdown.setValue(this.useBaseColorControl ? 'base' : 'individual');
-				dropdown.onChange((value) => {
-					const wasBaseMode = this.useBaseColorControl;
-					this.useBaseColorControl = value === 'base';
-					
-					// When switching modes, clear the opposite mode's values
-					if (wasBaseMode && !this.useBaseColorControl) {
-						// Switching from base to individual: clear baseColor
-						this.result.baseColor = undefined;
-					} else if (!wasBaseMode && this.useBaseColorControl) {
-						// Switching from individual to base: clear individual colors
-						this.result.iconColor = undefined;
-						this.result.folderColor = undefined;
-						this.result.textColor = undefined;
-					}
-					
-					this.buildColorsTab(); // Rebuild to show correct controls
-					this.updatePreview().catch(console.error);
-				});
-			});
-		
 		// Get base color (from config or computed) - use async IIFE
 		(async () => {
 			const baseColor = await this.getBaseColor();
-			
-			if (this.useBaseColorControl) {
-				// Base color control mode
-				this.buildBaseColorControl(container, baseColor);
-			} else {
-				// Individual colors control mode
-				this.buildIndividualColorsControl(container, baseColor);
-			}
+			this.buildUnifiedColorControl(container, baseColor);
 		})().catch(console.error);
 		
 		// Inherit base color toggle (for children)
@@ -360,7 +319,6 @@ export class FolderConfigModal extends Modal {
 		}
 		
 		// Otherwise, compute it (from palette if root + auto enabled, or from parent)
-		// This is a simplified version - the actual computation is in folderManager
 		if (!this.settings || !this.folderPath) {
 			return undefined;
 		}
@@ -380,13 +338,436 @@ export class FolderConfigModal extends Modal {
 			}
 		}
 		
-		// For subfolders, we'd need to compute from parent, but that's complex
-		// For now, just return undefined if not explicitly set
+		// Subfolder: inherit from parent if allowed
+		if (!isRootFolder) {
+			// Check if ANY ancestor has inheritance disabled
+			let canInherit = true;
+			for (let i = pathParts.length - 1; i > 0; i--) {
+				const ancestorPath = pathParts.slice(0, i).join('/');
+				const ancestorConfig = this.settings.folderConfigs[ancestorPath];
+				if (ancestorConfig && ancestorConfig.inheritBaseColor === false) {
+					canInherit = false;
+					break;
+				}
+			}
+			
+			if (canInherit) {
+				const parentPath = pathParts.slice(0, -1).join('/');
+				const parentBaseColor = await this.getBaseColorForPath(parentPath);
+				if (parentBaseColor) {
+					// Apply child base transformation
+					const transformedColor = this.applyChildBaseTransformation(parentBaseColor);
+					if (transformedColor) {
+						return transformedColor;
+					}
+				}
+			}
+		}
+		
 		return undefined;
 	}
 
 	/**
-	 * Build base color control UI
+	 * Get base color for a specific path (recursive helper)
+	 */
+	private async getBaseColorForPath(folderPath: string): Promise<string | undefined> {
+		const pathParts = folderPath.split('/');
+		const isRootFolder = pathParts.length === 1;
+		
+		// Check for explicit base color in config
+		const config = this.settings?.folderConfigs[folderPath];
+		if (config?.baseColor) {
+			return config.baseColor;
+		}
+		
+		// Root folder: get from palette if auto-color enabled
+		if (isRootFolder && this.settings?.autoColorEnabled) {
+			const rootFolders = this.getRootFolders();
+			const rootIndex = rootFolders.indexOf(folderPath);
+			if (rootIndex >= 0) {
+				const autoColors = await this.generateAutoColors(rootFolders);
+				if (rootIndex < autoColors.length) {
+					return autoColors[rootIndex];
+				}
+			}
+		}
+		
+		// Subfolder: inherit from parent if allowed
+		if (!isRootFolder) {
+			// Check if ANY ancestor has inheritance disabled
+			let canInherit = true;
+			for (let i = pathParts.length - 1; i > 0; i--) {
+				const ancestorPath = pathParts.slice(0, i).join('/');
+				const ancestorConfig = this.settings?.folderConfigs[ancestorPath];
+				if (ancestorConfig && ancestorConfig.inheritBaseColor === false) {
+					canInherit = false;
+					break;
+				}
+			}
+			
+			if (canInherit) {
+				const parentPath = pathParts.slice(0, -1).join('/');
+				const parentBaseColor = await this.getBaseColorForPath(parentPath);
+				if (parentBaseColor) {
+					// Apply child base transformation
+					const transformedColor = this.applyChildBaseTransformation(parentBaseColor);
+					if (transformedColor) {
+						return transformedColor;
+					}
+				}
+			}
+		}
+		
+		return undefined;
+	}
+
+	/**
+	 * Apply child base transformation to get child's base color from parent's base color
+	 */
+	private applyChildBaseTransformation(parentBaseColor: string): string | undefined {
+		if (!this.settings) return undefined;
+		
+		const transformation = this.settings.childBaseTransformation;
+		
+		// If type is 'none', children don't inherit
+		if (transformation.type === 'none') {
+			return undefined;
+		}
+		
+		// Apply the selected transformation (lightness or HSL)
+		if (transformation.type === 'hsl') {
+			return applyHSLTransformation(parentBaseColor, {
+				hue: transformation.hue || 0,
+				saturation: transformation.saturation || 0,
+				lightness: transformation.lightness || 0,
+			});
+		} else if (transformation.type === 'lightness' && transformation.adjustment !== undefined) {
+			return applyLightnessTransformation(parentBaseColor, transformation.adjustment);
+		}
+		
+		return parentBaseColor;
+	}
+
+	/**
+	 * Build unified color control UI showing base color and individual colors with hierarchy
+	 */
+	private buildUnifiedColorControl(container: HTMLElement, computedBaseColor: string | undefined): void {
+		const baseColorIsAuto = !this.result.baseColor && computedBaseColor !== undefined;
+		const baseColorToUse = this.result.baseColor || computedBaseColor;
+		
+		// Base color section
+		const baseColorSection = container.createDiv();
+		baseColorSection.addClass('folder-config-color-section');
+		baseColorSection.addClass('folder-config-base-color-section');
+		
+		const baseColorRow = baseColorSection.createDiv();
+		baseColorRow.addClass('folder-config-color-row');
+		
+		const labelContainer = baseColorRow.createDiv();
+		labelContainer.addClass('folder-config-color-label-container');
+		
+		const labelEl = labelContainer.createEl('label');
+		labelEl.setText('Base color');
+		labelEl.addClass('folder-config-color-label');
+		
+		// Badge showing if auto or manual
+		if (baseColorIsAuto) {
+			const autoBadge = labelContainer.createSpan();
+			autoBadge.addClass('folder-config-badge');
+			autoBadge.addClass('folder-config-badge-auto');
+			autoBadge.setText('Auto');
+		} else if (this.result.baseColor) {
+			const manualBadge = labelContainer.createSpan();
+			manualBadge.addClass('folder-config-badge');
+			manualBadge.addClass('folder-config-badge-manual');
+			manualBadge.setText('Manual');
+		}
+		
+		const inputContainer = baseColorRow.createDiv();
+		inputContainer.addClass('folder-config-color-input-container');
+		
+		// Native color picker
+		const colorInput = inputContainer.createEl('input');
+		colorInput.type = 'color';
+		colorInput.value = baseColorToUse || '#000000';
+		setCssProps(colorInput, {
+			width: '32px',
+			height: '32px',
+			border: '1px solid var(--background-modifier-border)',
+			borderRadius: '50%',
+			cursor: 'pointer',
+			flexShrink: '0',
+			padding: '0',
+			margin: '0',
+		});
+		
+		// Text input for hex value
+		const textInput = inputContainer.createEl('input');
+		textInput.type = 'text';
+		textInput.value = baseColorToUse || '#000000';
+		textInput.placeholder = '#000000';
+		textInput.addClass('folder-config-color-text-input');
+		setCssProps(textInput, {
+			width: '70px',
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '12px',
+			padding: '4px 6px',
+		});
+		
+		// Revert button (only show if base color is manually set)
+		if (this.result.baseColor) {
+			const revertButton = inputContainer.createEl('button');
+			revertButton.addClass('folder-config-revert-button');
+			revertButton.setText('Revert');
+			setCssProps(revertButton, {
+				fontSize: '11px',
+				padding: '4px 8px',
+				height: 'auto',
+				lineHeight: '1.2',
+			});
+			revertButton.onclick = () => {
+				this.result.baseColor = undefined;
+				this.buildColorsTab(); // Rebuild to show auto value
+				this.updatePreview().catch(console.error);
+			};
+		}
+		
+		colorInput.onchange = (e) => {
+			const color = (e.target as HTMLInputElement).value;
+			textInput.value = color;
+			this.result.baseColor = color;
+			// Don't clear individual colors - let user override individually
+			this.buildColorsTab(); // Rebuild to update computed values
+			this.updatePreview().catch(console.error);
+		};
+		
+		textInput.oninput = (e) => {
+			const value = (e.target as HTMLInputElement).value;
+			if (/^#[0-9A-F]{6}$/i.test(value)) {
+				colorInput.value = value;
+				this.result.baseColor = value;
+				this.buildColorsTab(); // Rebuild to update computed values
+				this.updatePreview().catch(console.error);
+			}
+		};
+		
+		textInput.onblur = () => {
+			const value = textInput.value.trim();
+			if (value && !value.startsWith('#')) {
+				textInput.value = '#' + value;
+			}
+			if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+				colorInput.value = textInput.value;
+				this.result.baseColor = textInput.value;
+				this.buildColorsTab(); // Rebuild to update computed values
+				this.updatePreview().catch(console.error);
+			}
+		};
+		
+		// Individual colors section (indented to show hierarchy)
+		if (baseColorToUse && this.settings) {
+			const individualSection = container.createDiv();
+			individualSection.addClass('folder-config-color-section');
+			individualSection.addClass('folder-config-individual-colors-section');
+			
+			// Icon color
+			const iconComputed = this.applyTransformation(baseColorToUse, this.settings.iconColorTransformation);
+			this.addIndividualColorControl(individualSection, 'Icon', 'iconColor', iconComputed, this.result.iconColor);
+			
+			// Background color
+			const folderComputed = this.applyTransformation(baseColorToUse, this.settings.folderColorTransformation);
+			this.addIndividualColorControl(individualSection, 'Background', 'folderColor', folderComputed, this.result.folderColor);
+			
+			// Text color
+			const textComputed = this.applyTransformation(baseColorToUse, this.settings.textColorTransformation);
+			this.addIndividualColorControl(individualSection, 'Text', 'textColor', textComputed, this.result.textColor);
+		}
+	}
+
+	/**
+	 * Add individual color control showing computed value and override capability
+	 */
+	private addIndividualColorControl(
+		container: HTMLElement,
+		label: string,
+		colorKey: 'iconColor' | 'folderColor' | 'textColor',
+		computedValue: string,
+		overrideValue: string | undefined
+	): void {
+		const colorRow = container.createDiv();
+		colorRow.addClass('folder-config-color-row');
+		colorRow.addClass('folder-config-individual-color-row');
+		
+		const labelContainer = colorRow.createDiv();
+		labelContainer.addClass('folder-config-color-label-container');
+		
+		const labelEl = labelContainer.createEl('label');
+		labelEl.setText(label);
+		labelEl.addClass('folder-config-color-label');
+		
+		// Show computed value (from base)
+		const computedDisplay = labelContainer.createDiv();
+		computedDisplay.addClass('folder-config-computed-display');
+		setCssProps(computedDisplay, {
+			display: 'flex',
+			alignItems: 'center',
+			gap: '4px',
+			marginLeft: '8px',
+		});
+		
+		const computedSwatch = computedDisplay.createDiv();
+		computedSwatch.addClass('folder-config-computed-swatch');
+		setCssProps(computedSwatch, {
+			width: '16px',
+			height: '16px',
+			borderRadius: '50%',
+			border: '1px solid var(--background-modifier-border)',
+			backgroundColor: computedValue,
+			flexShrink: '0',
+		});
+		
+		const computedText = computedDisplay.createSpan();
+		computedText.addClass('folder-config-computed-text');
+		computedText.setText(computedValue);
+		setCssProps(computedText, {
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '10px',
+			color: 'var(--text-muted)',
+		});
+		
+		// Override indicator - check if value differs from computed (not just if defined)
+		const isOverridden = overrideValue !== undefined && overrideValue.toLowerCase() !== computedValue.toLowerCase();
+		if (isOverridden) {
+			const overrideBadge = labelContainer.createSpan();
+			overrideBadge.addClass('folder-config-badge');
+			overrideBadge.addClass('folder-config-badge-override');
+			overrideBadge.setText('Override');
+		}
+		
+		const inputContainer = colorRow.createDiv();
+		inputContainer.addClass('folder-config-color-input-container');
+		
+		// Use override value if set, otherwise use computed
+		const currentValue = overrideValue !== undefined ? overrideValue : computedValue;
+		
+		// Native color picker
+		const colorInput = inputContainer.createEl('input');
+		colorInput.type = 'color';
+		colorInput.value = currentValue;
+		setCssProps(colorInput, {
+			width: '32px',
+			height: '32px',
+			border: '1px solid var(--background-modifier-border)',
+			borderRadius: '50%',
+			cursor: 'pointer',
+			flexShrink: '0',
+			padding: '0',
+			margin: '0',
+		});
+		
+		// Text input for hex value
+		const textInput = inputContainer.createEl('input');
+		textInput.type = 'text';
+		textInput.value = currentValue;
+		textInput.placeholder = '#000000';
+		textInput.addClass('folder-config-color-text-input');
+		setCssProps(textInput, {
+			width: '70px',
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '12px',
+			padding: '4px 6px',
+		});
+		
+		// Revert button (only show if color is overridden)
+		if (isOverridden) {
+			const revertButton = inputContainer.createEl('button');
+			revertButton.addClass('folder-config-revert-button');
+			revertButton.setText('Revert');
+			setCssProps(revertButton, {
+				fontSize: '11px',
+				padding: '4px 8px',
+				height: 'auto',
+				lineHeight: '1.2',
+			});
+			revertButton.onclick = () => {
+				if (colorKey === 'iconColor') this.result.iconColor = undefined;
+				else if (colorKey === 'folderColor') this.result.folderColor = undefined;
+				else if (colorKey === 'textColor') this.result.textColor = undefined;
+				this.buildColorsTab(); // Rebuild to show computed value
+				this.updatePreview().catch(console.error);
+			};
+		}
+		
+		colorInput.onchange = (e) => {
+			const color = (e.target as HTMLInputElement).value;
+			textInput.value = color;
+			
+			// Always set the value first, then check if it matches computed
+			if (colorKey === 'iconColor') this.result.iconColor = color;
+			else if (colorKey === 'folderColor') this.result.folderColor = color;
+			else if (colorKey === 'textColor') this.result.textColor = color;
+			
+			// Check if color matches computed - if so, clear override
+			if (color.toLowerCase() === computedValue.toLowerCase()) {
+				if (colorKey === 'iconColor') this.result.iconColor = undefined;
+				else if (colorKey === 'folderColor') this.result.folderColor = undefined;
+				else if (colorKey === 'textColor') this.result.textColor = undefined;
+			}
+			
+			this.buildColorsTab(); // Rebuild to update UI (including revert button)
+			this.updatePreview().catch(console.error);
+		};
+		
+		textInput.oninput = (e) => {
+			const value = (e.target as HTMLInputElement).value;
+			if (/^#[0-9A-F]{6}$/i.test(value)) {
+				colorInput.value = value;
+				
+				// Always set the value first, then check if it matches computed
+				if (colorKey === 'iconColor') this.result.iconColor = value;
+				else if (colorKey === 'folderColor') this.result.folderColor = value;
+				else if (colorKey === 'textColor') this.result.textColor = value;
+				
+				// Check if color matches computed - if so, clear override
+				if (value.toLowerCase() === computedValue.toLowerCase()) {
+					if (colorKey === 'iconColor') this.result.iconColor = undefined;
+					else if (colorKey === 'folderColor') this.result.folderColor = undefined;
+					else if (colorKey === 'textColor') this.result.textColor = undefined;
+				}
+				
+				this.buildColorsTab(); // Rebuild to update UI (including revert button)
+				this.updatePreview().catch(console.error);
+			}
+		};
+		
+		textInput.onblur = () => {
+			const value = textInput.value.trim();
+			if (value && !value.startsWith('#')) {
+				textInput.value = '#' + value;
+			}
+			if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+				colorInput.value = textInput.value;
+				
+				// Always set the value first, then check if it matches computed
+				if (colorKey === 'iconColor') this.result.iconColor = textInput.value;
+				else if (colorKey === 'folderColor') this.result.folderColor = textInput.value;
+				else if (colorKey === 'textColor') this.result.textColor = textInput.value;
+				
+				// Check if color matches computed - if so, clear override
+				if (textInput.value.toLowerCase() === computedValue.toLowerCase()) {
+					if (colorKey === 'iconColor') this.result.iconColor = undefined;
+					else if (colorKey === 'folderColor') this.result.folderColor = undefined;
+					else if (colorKey === 'textColor') this.result.textColor = undefined;
+				}
+				
+				this.buildColorsTab(); // Rebuild to update UI (including revert button)
+				this.updatePreview().catch(console.error);
+			}
+		};
+	}
+
+	/**
+	 * Build base color control UI (deprecated - kept for reference)
 	 */
 	private buildBaseColorControl(container: HTMLElement, computedBaseColor: string | undefined): void {
 		// Base color input
@@ -403,70 +784,78 @@ export class FolderConfigModal extends Modal {
 		const inputContainer = baseColorRow.createDiv();
 		inputContainer.addClass('folder-config-color-input-container');
 		
-		// Quick color picker from palette
-		if (this.settings && this.settings.colorPalettes.length > 0) {
-			const activePalette = this.settings.colorPalettes[this.settings.activePaletteIndex || 0];
-			if (activePalette && activePalette.colors.length > 0) {
-				const quickColors = inputContainer.createDiv();
-				quickColors.addClass('quick-color-picker-compact');
-				activePalette.colors.forEach(color => {
-					const swatch = quickColors.createDiv();
-					swatch.addClass('quick-color-swatch');
-					swatch.style.backgroundColor = color;
-					swatch.title = color;
-					swatch.onclick = () => {
-						this.result.baseColor = color;
-						// Clear individual colors when base color is set
-						this.result.iconColor = undefined;
-						this.result.folderColor = undefined;
-						this.result.textColor = undefined;
-						const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
-						const colorInput = inputContainer.querySelector('input[type="color"]') as HTMLInputElement;
-						if (textInput) textInput.value = color;
-						if (colorInput) colorInput.value = color;
-						this.updatePreview().catch(console.error);
-					};
-				});
-			}
-		}
-		
-		// HTML5 color picker
-		const colorPicker = inputContainer.createEl('input');
-		colorPicker.type = 'color';
-		colorPicker.value = this.result.baseColor || computedBaseColor || '#000000';
-		colorPicker.addClass('folder-config-color-picker');
-		colorPicker.onchange = (e: Event) => {
-			const value = (e.target as HTMLInputElement).value;
-			this.result.baseColor = value;
-			const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
-			if (textInput) textInput.value = value;
-			this.updatePreview().catch(console.error);
-		};
-		
-		// Text input
-		const input = inputContainer.createEl('input');
-		input.type = 'text';
-		input.placeholder = '#000000';
-		input.value = this.result.baseColor || computedBaseColor || '';
-		input.addClass('folder-config-input');
-		input.addClass('folder-config-color-text-input');
-		setCssProps(input, {
-			width: '100px',
+		// Native color picker
+		const colorInput = inputContainer.createEl('input');
+		colorInput.type = 'color';
+		colorInput.value = this.result.baseColor || computedBaseColor || '#000000';
+		setCssProps(colorInput, {
+			width: '32px',
+			height: '32px',
+			border: '1px solid var(--background-modifier-border)',
+			borderRadius: '50%',
+			cursor: 'pointer',
+			flexShrink: '0',
+			padding: '0',
+			margin: '0',
 		});
-		input.oninput = (e: Event) => {
-			const value = (e.target as HTMLInputElement).value;
-			this.result.baseColor = value || undefined;
+		
+		// Text input for hex value
+		const textInput = inputContainer.createEl('input');
+		textInput.type = 'text';
+		textInput.value = this.result.baseColor || computedBaseColor || '#000000';
+		textInput.placeholder = '#000000';
+		textInput.addClass('folder-config-color-text-input');
+		setCssProps(textInput, {
+			width: '70px',
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '12px',
+			padding: '4px 6px',
+		});
+		
+		colorInput.onchange = (e) => {
+			const color = (e.target as HTMLInputElement).value;
+			textInput.value = color;
+			this.result.baseColor = color;
 			// Clear individual colors when base color is set
 			if (this.result.baseColor) {
 				this.result.iconColor = undefined;
 				this.result.folderColor = undefined;
 				this.result.textColor = undefined;
 			}
-			const colorInput = inputContainer.querySelector('input[type="color"]') as HTMLInputElement;
-			if (colorInput && /^#[0-9A-F]{6}$/i.test(value)) {
-				colorInput.value = value;
-			}
 			this.updatePreview().catch(console.error);
+		};
+		
+		textInput.oninput = (e) => {
+			const value = (e.target as HTMLInputElement).value;
+			if (/^#[0-9A-F]{6}$/i.test(value)) {
+				colorInput.value = value;
+				this.result.baseColor = value;
+				// Clear individual colors when base color is set
+				if (this.result.baseColor) {
+					this.result.iconColor = undefined;
+					this.result.folderColor = undefined;
+					this.result.textColor = undefined;
+				}
+				this.updatePreview().catch(console.error);
+			}
+		};
+		
+		textInput.onblur = () => {
+			const value = textInput.value.trim();
+			if (value && !value.startsWith('#')) {
+				textInput.value = '#' + value;
+			}
+			if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+				colorInput.value = textInput.value;
+				this.result.baseColor = textInput.value;
+				// Clear individual colors when base color is set
+				if (this.result.baseColor) {
+					this.result.iconColor = undefined;
+					this.result.folderColor = undefined;
+					this.result.textColor = undefined;
+				}
+				this.updatePreview().catch(console.error);
+			}
 		};
 		
 		// Show computed colors from base (read-only)
@@ -475,8 +864,8 @@ export class FolderConfigModal extends Modal {
 			const computedSection = container.createDiv();
 			computedSection.addClass('folder-config-computed-colors');
 			setCssProps(computedSection, {
-				marginTop: '8px',
-				padding: '8px',
+				marginTop: '6px',
+				padding: '6px 8px',
 				background: 'var(--background-secondary)',
 				borderRadius: '4px',
 				border: '1px solid var(--background-modifier-border)',
@@ -484,10 +873,12 @@ export class FolderConfigModal extends Modal {
 			
 			const computedTitle = computedSection.createEl('p', { text: 'Computed colors' });
 			setCssProps(computedTitle, {
-				margin: '0 0 8px 0',
-				fontSize: '11px',
-				fontWeight: '500',
+				margin: '0 0 6px 0',
+				fontSize: '10px',
+				fontWeight: '600',
 				color: 'var(--text-muted)',
+				textTransform: 'uppercase',
+				letterSpacing: '0.5px',
 			});
 			
 			// Icon color
@@ -515,12 +906,10 @@ export class FolderConfigModal extends Modal {
 		if (this.settings) {
 			// Icon color
 			let iconComputed: string | undefined;
-			let iconIsComputed = false;
 			if (this.result.iconColor !== undefined) {
 				// Explicitly set - not computed
 			} else if (baseColorToUse) {
 				iconComputed = this.applyTransformation(baseColorToUse, this.settings.iconColorTransformation);
-				iconIsComputed = true;
 			}
 			
 			// In individual colors mode, controls should NOT be disabled even if computed
@@ -534,12 +923,10 @@ export class FolderConfigModal extends Modal {
 			
 			// Folder background color
 			let folderComputed: string | undefined;
-			let folderIsComputed = false;
 			if (this.result.folderColor !== undefined) {
 				// Explicitly set - not computed
 			} else if (baseColorToUse) {
 				folderComputed = this.applyTransformation(baseColorToUse, this.settings.folderColorTransformation);
-				folderIsComputed = true;
 			}
 			
 			this.addColorInputWithAutoColor(
@@ -551,12 +938,10 @@ export class FolderConfigModal extends Modal {
 			
 			// Text color
 			let textComputed: string | undefined;
-			let textIsComputed = false;
 			if (this.result.textColor !== undefined) {
 				// Explicitly set - not computed
 			} else if (baseColorToUse) {
 				textComputed = this.applyTransformation(baseColorToUse, this.settings.textColorTransformation);
-				textIsComputed = true;
 			}
 			
 			this.addColorInputWithAutoColor(
@@ -576,20 +961,20 @@ export class FolderConfigModal extends Modal {
 		setCssProps(row, {
 			display: 'flex',
 			alignItems: 'center',
-			gap: '8px',
-			marginBottom: '4px',
+			gap: '6px',
+			marginBottom: '3px',
 		});
 		
 		const labelEl = row.createEl('span', { text: label });
 		setCssProps(labelEl, {
-			fontSize: '12px',
-			minWidth: '70px',
+			fontSize: '11px',
+			minWidth: '60px',
 		});
 		
 		const colorDisplay = row.createDiv();
 		setCssProps(colorDisplay, {
-			width: '20px',
-			height: '20px',
+			width: '16px',
+			height: '16px',
 			borderRadius: '3px',
 			border: '1px solid var(--background-modifier-border)',
 			backgroundColor: color,
@@ -598,7 +983,7 @@ export class FolderConfigModal extends Modal {
 		const valueEl = row.createEl('span', { text: color });
 		setCssProps(valueEl, {
 			fontFamily: 'var(--font-monospace)',
-			fontSize: '11px',
+			fontSize: '10px',
 			color: 'var(--text-muted)',
 		});
 	}
@@ -741,95 +1126,73 @@ export class FolderConfigModal extends Modal {
 		const inputContainer = colorRow.createDiv();
 		inputContainer.addClass('folder-config-color-input-container');
 		
-		// Quick color picker from palette
-		if (this.settings && this.settings.colorPalettes.length > 0) {
-			const activePalette = this.settings.colorPalettes[this.settings.activePaletteIndex || 0];
-			if (activePalette && activePalette.colors.length > 0) {
-				const quickColors = inputContainer.createDiv();
-				quickColors.addClass('quick-color-picker-compact');
-			activePalette.colors.forEach(color => {
-				const swatch = quickColors.createDiv();
-				swatch.addClass('quick-color-swatch');
-				setCssProps(swatch, {
-					backgroundColor: color,
-				});
-				swatch.title = color;
-				swatch.onclick = () => {
-					(this.result as any)[colorKey] = color;
-						// Clear base color when individual color is set
-						this.result.baseColor = undefined;
-						const textInput = inputContainer.querySelector('input[type="text"]') as HTMLInputElement;
-						const colorInput = inputContainer.querySelector('input[type="color"]') as HTMLInputElement;
-						if (textInput) textInput.value = color;
-						if (colorInput) colorInput.value = color;
-						this.updatePreview().catch(console.error);
-					};
-				});
-			}
-		}
-		
-		// HTML5 color picker
-		const colorPicker = inputContainer.createEl("input");
-    colorPicker.type = "color";
-    colorPicker.value = currentValue || "#000000";
-    colorPicker.addClass("folder-config-color-picker");
-
-    colorPicker.onchange = (e: Event) => {
-      const value = (e.target as HTMLInputElement).value;
-      (this.result as any)[colorKey] = value;
-      const textInput = inputContainer.querySelector(
-        'input[type="text"]'
-      ) as HTMLInputElement;
-      if (textInput) textInput.value = value;
-      this.updatePreview().catch(console.error);
-    };
+		// Native color picker
+		const colorInput = inputContainer.createEl('input');
+		colorInput.type = 'color';
+		colorInput.value = currentValue || '#000000';
+		setCssProps(colorInput, {
+			width: '32px',
+			height: '32px',
+			border: '1px solid var(--background-modifier-border)',
+			borderRadius: '50%',
+			cursor: 'pointer',
+			flexShrink: '0',
+			padding: '0',
+			margin: '0',
+		});
 		
 		// Text input for hex value
-		const input = inputContainer.createEl('input');
-		input.type = 'text';
-		input.placeholder = '#000000';
-		input.value = currentValue || '';
-		input.addClass('folder-config-input');
-		input.addClass('folder-config-color-text-input');
-		setCssProps(input, {
-			width: '100px',
+		const textInput = inputContainer.createEl('input');
+		textInput.type = 'text';
+		textInput.value = currentValue || '#000000';
+		textInput.placeholder = '#000000';
+		textInput.addClass('folder-config-color-text-input');
+		setCssProps(textInput, {
+			width: '70px',
+			fontFamily: 'var(--font-monospace)',
+			fontSize: '12px',
+			padding: '4px 6px',
 		});
-
-    input.oninput = (e: Event) => {
-      const value = (e.target as HTMLInputElement).value;
-      (this.result as any)[colorKey] = value || undefined;
-      // Clear base color when individual color is set
-      if (value) {
-        this.result.baseColor = undefined;
-      }
-      const colorInput = inputContainer.querySelector(
-        'input[type="color"]'
-      ) as HTMLInputElement;
-      if (colorInput && /^#[0-9A-F]{6}$/i.test(value)) {
-        colorInput.value = value;
-      }
-      this.updatePreview().catch(console.error);
-    };
-
-    // Sync color picker when text input changes
-    input.onchange = (e: Event) => {
-      const value = (e.target as HTMLInputElement).value;
-      if (/^#[0-9A-F]{6}$/i.test(value)) {
-        colorPicker.value = value;
-      }
-    };
-
-    // Clear base color when individual color is set via color picker
-    colorPicker.onchange = (e: Event) => {
-      const value = (e.target as HTMLInputElement).value;
-      (this.result as any)[colorKey] = value;
-      this.result.baseColor = undefined;
-      const textInput = inputContainer.querySelector(
-        'input[type="text"]'
-      ) as HTMLInputElement;
-      if (textInput) textInput.value = value;
-      this.updatePreview().catch(console.error);
-    };
+		
+		colorInput.onchange = (e) => {
+			const color = (e.target as HTMLInputElement).value;
+			textInput.value = color;
+			if (colorKey === 'iconColor') this.result.iconColor = color;
+			else if (colorKey === 'folderColor') this.result.folderColor = color;
+			else if (colorKey === 'textColor') this.result.textColor = color;
+			// Clear base color when individual color is set
+			this.result.baseColor = undefined;
+			this.updatePreview().catch(console.error);
+		};
+		
+		textInput.oninput = (e) => {
+			const value = (e.target as HTMLInputElement).value;
+			if (/^#[0-9A-F]{6}$/i.test(value)) {
+				colorInput.value = value;
+				if (colorKey === 'iconColor') this.result.iconColor = value;
+				else if (colorKey === 'folderColor') this.result.folderColor = value;
+				else if (colorKey === 'textColor') this.result.textColor = value;
+				// Clear base color when individual color is set
+				this.result.baseColor = undefined;
+				this.updatePreview().catch(console.error);
+			}
+		};
+		
+		textInput.onblur = () => {
+			const value = textInput.value.trim();
+			if (value && !value.startsWith('#')) {
+				textInput.value = '#' + value;
+			}
+			if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+				colorInput.value = textInput.value;
+				if (colorKey === 'iconColor') this.result.iconColor = textInput.value;
+				else if (colorKey === 'folderColor') this.result.folderColor = textInput.value;
+				else if (colorKey === 'textColor') this.result.textColor = textInput.value;
+				// Clear base color when individual color is set
+				this.result.baseColor = undefined;
+				this.updatePreview().catch(console.error);
+			}
+		};
 	}
 
 	private async performSearch(): Promise<void> {
@@ -855,7 +1218,7 @@ export class FolderConfigModal extends Modal {
 			if (!this.searchQuery.trim()) {
 				this.searchResults = await this.getPopularIcons();
 			} else {
-				this.searchResults = await searchIcons(this.searchQuery, this.currentSource as any, this.app);
+				this.searchResults = await searchIcons(this.searchQuery, this.currentSource, this.app);
 			}
 		}
 
@@ -937,7 +1300,7 @@ export class FolderConfigModal extends Modal {
 		
 		// Use searchIcons with empty query to get all icons for the current source
 		// This ensures we get native Lucide icons too if no local pack exists
-		let allIcons = await searchIcons('', this.currentSource as any, this.app);
+		let allIcons = await searchIcons('', this.currentSource, this.app);
 		
 		// Remove duplicates
 		const seen = new Set<string>();
@@ -1034,7 +1397,7 @@ export class FolderConfigModal extends Modal {
 					source: 'lucide',
 					url: getLucideIconUrl(iconName),
 				};
-			} else if (isLocalIcon(this.result.icon)) {
+			} else if (isLocalIcon(this.result.icon, this.app)) {
 				iconInfo = {
 					name: this.result.icon.split('/').pop()?.replace('.svg', '') || '',
 					displayName: this.result.icon.split('/').pop() || '',

@@ -2,9 +2,30 @@
  * Icon pack manager for downloading and managing icon packs
  */
 
-import { TFile, TFolder, requestUrl } from 'obsidian';
+import { App, TFile, TFolder, requestUrl } from 'obsidian';
 import { ensureIconsFolderExists } from './iconDownloader';
 import { clearIconCache } from './iconService';
+
+/**
+ * Window interface extended with JSZip (loaded from CDN)
+ * JSZip is loaded dynamically, so we define a minimal interface
+ */
+interface JSZipFile {
+	dir: boolean;
+	async(type: 'string'): Promise<string>;
+}
+
+interface JSZipInstance {
+	loadAsync(data: ArrayBuffer): Promise<JSZipInstance>;
+	forEach(callback: (relativePath: string, file: JSZipFile) => void): void;
+}
+
+interface WindowWithJSZip extends Window {
+	JSZip?: {
+		new (): JSZipInstance;
+		loadAsync(data: ArrayBuffer): Promise<JSZipInstance>;
+	};
+}
 
 export interface IconPack {
 	id: string;
@@ -85,27 +106,30 @@ export const PREDEFINED_ICON_PACKS: PredefinedIconPack[] = [
 ];
 
 /**
- * Get all icon packs from .obsidian/icons folder
+ * Get all icon packs from config/icons folder
  */
-export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
+export async function getInstalledIconPacks(app: App): Promise<IconPack[]> {
 	const packs: IconPack[] = [];
 	
 	try {
-		// Try to get icons folder - use adapter for more reliable access to .obsidian folder
+		// Try to get icons folder - use adapter for more reliable access to config folder
+		const configDir = app.vault.configDir;
+		const iconsPath = `${configDir}/icons`;
 		let iconsFolder: TFolder | null = null;
 		
 		// First try direct path
-		const directFolder = app.vault.getAbstractFileByPath('.obsidian/icons');
+		const directFolder = app.vault.getAbstractFileByPath(iconsPath);
 		if (directFolder instanceof TFolder) {
 			iconsFolder = directFolder;
 		} else {
-			// Try accessing via .obsidian folder
-			const obsidianFolder = app.vault.getAbstractFileByPath('.obsidian');
-			if (obsidianFolder instanceof TFolder) {
+			// Try accessing via config folder
+			const configFolder = app.vault.getAbstractFileByPath(configDir);
+			if (configFolder instanceof TFolder) {
 				// Force refresh by accessing children
-				(obsidianFolder as any).children;
-				const iconsChild = obsidianFolder.children.find(
-					(child: any) => child instanceof TFolder && child.name === 'icons'
+				// Access children property to force cache refresh
+				void configFolder.children;
+				const iconsChild = configFolder.children.find(
+					(child) => child instanceof TFolder && child.name === 'icons'
 				);
 				if (iconsChild instanceof TFolder) {
 					iconsFolder = iconsChild;
@@ -116,26 +140,26 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
 		// If still not found, try using adapter to check if it exists and force refresh
 		if (!iconsFolder) {
 			try {
-				const iconsPathExists = app.vault.adapter.exists('.obsidian/icons');
+				const iconsPathExists = app.vault.adapter.exists(iconsPath);
 				// Handle both sync and async exists
 				const exists = iconsPathExists instanceof Promise ? await iconsPathExists : iconsPathExists;
 				if (exists) {
 					// Force a refresh by listing the directory
 					try {
-						const listResult = app.vault.adapter.list('.obsidian');
+						const listResult = app.vault.adapter.list(configDir);
 						if (listResult instanceof Promise) {
 							await listResult;
 						}
-					} catch (e) {
+					} catch {
 						// Ignore list errors
 					}
 					// Try one more time after adapter check
-					const retryFolder = app.vault.getAbstractFileByPath('.obsidian/icons');
+					const retryFolder = app.vault.getAbstractFileByPath(iconsPath);
 					if (retryFolder instanceof TFolder) {
 						iconsFolder = retryFolder;
 					}
 				}
-			} catch (e) {
+			} catch {
 				// Ignore adapter errors
 			}
 		}
@@ -159,7 +183,7 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
 				for (const dir of listing.folders) {
 					count += await countSvgFilesRecursive(dir);
 				}
-			} catch (e) {
+			} catch {
 				// Fallback to vault API if adapter fails
 				try {
 					const folder = app.vault.getAbstractFileByPath(folderPath);
@@ -179,21 +203,22 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
 			return count;
 		};
 
-		// Use adapter to directly list folders in .obsidian/icons for more reliable detection
+		// Use adapter to directly list folders in config/icons for more reliable detection
+		// Reuse configDir and iconsPath from outer scope
 		let packFolders: string[] = [];
 		try {
-			const listResult = app.vault.adapter.list('.obsidian/icons');
+			const listResult = app.vault.adapter.list(iconsPath);
 			const listing = listResult instanceof Promise ? await listResult : listResult;
 			packFolders = listing.folders.map((f: string) => {
 				// Extract folder name from full path
 				const parts = f.split('/');
 				return parts[parts.length - 1];
 			});
-		} catch (e) {
+		} catch {
 			// Fallback to vault API
 			if (iconsFolder) {
 				packFolders = iconsFolder.children
-					.filter((child: any) => child instanceof TFolder)
+					.filter((child) => child instanceof TFolder)
 					.map((child: TFolder) => child.name);
 			}
 		}
@@ -201,14 +226,14 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
 		// Check for predefined packs
 		for (const predefined of PREDEFINED_ICON_PACKS) {
 			const packFolderName = predefined.id;
-			const packFolderPath = `.obsidian/icons/${packFolderName}`;
+			const packFolderPath = `${iconsPath}/${packFolderName}`;
 			
 			// Check if pack folder exists using adapter
 			let packExists = false;
 			try {
 				const existsResult = app.vault.adapter.exists(packFolderPath);
 				packExists = existsResult instanceof Promise ? await existsResult : existsResult;
-			} catch (e) {
+			} catch {
 				// Fallback: check if folder name is in the list
 				packExists = packFolders.includes(packFolderName);
 			}
@@ -234,7 +259,7 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
 		for (const folderName of packFolders) {
 			const isPredefined = PREDEFINED_ICON_PACKS.some(p => p.id === folderName);
 			if (!isPredefined) {
-				const customPackPath = `.obsidian/icons/${folderName}`;
+				const customPackPath = `${iconsPath}/${folderName}`;
 				const iconCount = await countSvgFilesRecursive(customPackPath);
 				
 				packs.push({
@@ -258,7 +283,7 @@ export async function getInstalledIconPacks(app: any): Promise<IconPack[]> {
  * Delete an installed icon pack
  */
 export async function deleteIconPack(
-	app: any,
+	app: App,
 	pack: IconPack
 ): Promise<{ success: boolean; error?: string }> {
 	if (!pack.path) {
@@ -297,20 +322,21 @@ export async function deleteIconPack(
  * Similar to obsidian-iconize approach
  */
 export async function downloadIconPack(
-	app: any,
+	app: App,
 	pack: PredefinedIconPack
 ): Promise<{ success: boolean; error?: string; downloaded?: number }> {
 	try {
 		// Ensure icons folder exists
 		await ensureIconsFolderExists(app);
 
-		const packFolderPath = `.obsidian/icons/${pack.id}`;
+		const configDir = app.vault.configDir;
+		const packFolderPath = `${configDir}/icons/${pack.id}`;
 		
 		// Create pack folder if it doesn't exist
 		try {
 			await app.vault.createFolder(packFolderPath);
-		} catch (createError: any) {
-			const errorMessage = createError?.message || String(createError);
+		} catch (createError: unknown) {
+			const errorMessage = createError instanceof Error ? createError.message : String(createError);
 			if (!errorMessage.includes('already exists') && !errorMessage.includes('Folder already exists')) {
 				return { success: false, error: `Failed to create pack folder: ${errorMessage}` };
 			}
@@ -339,14 +365,14 @@ export async function downloadIconPack(
 		}
 		
 		// Use JSZip to extract (we'll load it dynamically)
-		// @ts-ignore - JSZip will be loaded from CDN
-		let JSZip = (window as any).JSZip;
+		// JSZip is loaded from CDN and added to window object
+		let JSZip = (window as WindowWithJSZip).JSZip;
 		if (!JSZip) {
-			JSZip = await loadJSZip();
-		}
-		
-		if (!JSZip) {
-			return { success: false, error: 'JSZip library not available. Please install icon packs manually.' };
+			const loadedJSZip = await loadJSZip();
+			if (!loadedJSZip) {
+				return { success: false, error: 'JSZip library not available. Please install icon packs manually.' };
+			}
+			JSZip = loadedJSZip;
 		}
 
 		const zip = await JSZip.loadAsync(arrayBuffer);
@@ -356,8 +382,8 @@ export async function downloadIconPack(
 		const svgFiles: Array<{ path: string; content: string }> = [];
 		
 		// Process all files in the zip - collect all SVG files first
-		const fileEntries: Array<{ path: string; file: any }> = [];
-		zip.forEach((relativePath: string, file: any) => {
+		const fileEntries: Array<{ path: string; file: JSZipFile }> = [];
+		zip.forEach((relativePath: string, file: JSZipFile) => {
 			if (!file.dir && relativePath.endsWith('.svg')) {
 				fileEntries.push({ path: relativePath, file });
 			}
@@ -451,10 +477,11 @@ export async function downloadIconPack(
 							// Create subdirectory if it doesn't exist
 							try {
 								await app.vault.adapter.mkdir(subDirPath);
-							} catch (e: any) {
+							} catch (e: unknown) {
 								// Ignore if already exists
-								if (!e?.message?.includes('already exists') && !e?.message?.includes('Folder already exists')) {
-									console.warn(`Failed to create subdirectory ${subDirPath}:`, e);
+								const errorMessage = e instanceof Error ? e.message : String(e);
+								if (!errorMessage.includes('already exists') && !errorMessage.includes('Folder already exists')) {
+									console.warn(`Failed to create subdirectory ${subDirPath}:`, errorMessage);
 								}
 							}
 							filePath = `${subDirPath}/${fileName}`;
@@ -492,11 +519,12 @@ export async function downloadIconPack(
 /**
  * Load JSZip library dynamically from CDN
  */
-async function loadJSZip(): Promise<any> {
+async function loadJSZip(): Promise<NonNullable<WindowWithJSZip['JSZip']> | null> {
 	return new Promise((resolve) => {
 		// Check if already loaded
-		if ((window as any).JSZip) {
-			resolve((window as any).JSZip);
+		const windowWithJSZip = window as WindowWithJSZip;
+		if (windowWithJSZip.JSZip) {
+			resolve(windowWithJSZip.JSZip);
 			return;
 		}
 
@@ -504,7 +532,7 @@ async function loadJSZip(): Promise<any> {
 		const script = document.createElement('script');
 		script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
 		script.onload = () => {
-			resolve((window as any).JSZip);
+			resolve(windowWithJSZip.JSZip || null);
 		};
 		script.onerror = () => {
 			console.error('Failed to load JSZip library');

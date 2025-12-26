@@ -2,7 +2,7 @@
  * Icon downloader utility for downloading icons to .obsidian/icons
  */
 
-import { TFile, TFolder, requestUrl } from 'obsidian';
+import { App, TFile, TFolder, requestUrl } from 'obsidian';
 
 export interface DownloadResult {
 	success: boolean;
@@ -41,8 +41,9 @@ function sanitizeFileName(fileName: string): string {
 /**
  * Ensure the .obsidian/icons folder exists
  */
-export async function ensureIconsFolderExists(app: any): Promise<TFolder | null> {
-	const iconsPath = '.obsidian/icons';
+export async function ensureIconsFolderExists(app: App): Promise<TFolder | null> {
+	const configDir = app.vault.configDir;
+	const iconsPath = `${configDir}/icons`;
 	
 	// Helper function to find the icons folder
 	const findIconsFolder = (): TFolder | null => {
@@ -52,12 +53,12 @@ export async function ensureIconsFolderExists(app: any): Promise<TFolder | null>
 			return iconsFolder;
 		}
 		
-		// Try accessing via .obsidian folder
+		// Try accessing via config folder
 		try {
-			const obsidianFolder = app.vault.getAbstractFileByPath('.obsidian');
-			if (obsidianFolder instanceof TFolder) {
-				const iconsChild = obsidianFolder.children.find(
-					(child: any) => child instanceof TFolder && child.name === 'icons'
+			const configFolder = app.vault.getAbstractFileByPath(configDir);
+			if (configFolder instanceof TFolder) {
+				const iconsChild = configFolder.children.find(
+					(child) => child instanceof TFolder && child.name === 'icons'
 				);
 				if (iconsChild instanceof TFolder) {
 					return iconsChild;
@@ -79,9 +80,9 @@ export async function ensureIconsFolderExists(app: any): Promise<TFolder | null>
 	// Try to create the folder
 	try {
 		await app.vault.createFolder(iconsPath);
-	} catch (createError: any) {
+	} catch (createError: unknown) {
 		// If the error is that the folder already exists, that's fine
-		const errorMessage = createError?.message || String(createError);
+		const errorMessage = createError instanceof Error ? createError.message : String(createError);
 		if (errorMessage.includes('already exists') || errorMessage.includes('Folder already exists')) {
 			// Folder exists, just find it - try a few times with small delays for cache
 			for (let i = 0; i < 5; i++) {
@@ -113,7 +114,7 @@ export async function ensureIconsFolderExists(app: any): Promise<TFolder | null>
  * Download a SimpleIcons icon to .obsidian/icons
  */
 export async function downloadSimpleIcon(
-	app: any,
+	app: App,
 	iconName: string,
 	color?: string
 ): Promise<DownloadResult> {
@@ -166,7 +167,7 @@ export async function downloadSimpleIcon(
  * Download an icon from a URL to .obsidian/icons
  */
 export async function downloadIconFromUrl(
-	app: any,
+	app: App,
 	url: string,
 	fileName: string
 ): Promise<DownloadResult> {
@@ -218,7 +219,14 @@ export async function downloadIconFromUrl(
 /**
  * Check if an icon path is a local icon (in .obsidian/icons)
  */
-export function isLocalIcon(path: string): boolean {
-	return path.startsWith('.obsidian/icons/') || path.startsWith('/.obsidian/icons/');
+export function isLocalIcon(path: string, app?: App): boolean {
+	if (!app) {
+		// Fallback: check for common config path (default is .obsidian)
+		// This is acceptable as a fallback when app is not available
+		// eslint-disable-next-line obsidianmd/hardcoded-config-path
+		return path.startsWith('.obsidian/icons/') || path.startsWith('/.obsidian/icons/');
+	}
+	const configDir = app.vault.configDir;
+	return path.startsWith(`${configDir}/icons/`) || path.startsWith(`/${configDir}/icons/`);
 }
 

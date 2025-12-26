@@ -8,6 +8,14 @@ export interface FolderConfig {
 	inheritBaseColor?: boolean; // Whether children inherit base color (default: true)
 }
 
+// Internal type for folder config with deletion flags
+export interface FolderConfigWithDeletions extends FolderConfig {
+	__deleteBaseColor?: boolean;
+	__deleteIconColor?: boolean;
+	__deleteFolderColor?: boolean;
+	__deleteTextColor?: boolean;
+}
+
 export interface ColorPalette {
 	name: string;
 	colors: string[]; // Array of hex colors

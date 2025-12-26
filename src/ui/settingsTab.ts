@@ -1,6 +1,6 @@
 import { App, Modal, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { IconocolorPlugin } from '../main';
-import { FolderConfig, ColorPalette, DefaultIconRule, ColorTransformation, SettingsProfile } from '../types';
+import { FolderConfig, ColorPalette, DefaultIconRule, ColorTransformation, SettingsProfile, FolderConfigWithDeletions } from '../types';
 import { FolderConfigModal } from './folderConfigModal';
 import { getInstalledIconPacks, deleteIconPack, IconPack } from '../utils/iconPackManager';
 import { BrowsePacksModal } from './browsePacksModal';
@@ -523,6 +523,21 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					...(result.applyToSubfolders !== undefined && { applyToSubfolders: result.applyToSubfolders }),
 					...(result.inheritBaseColor !== undefined && { inheritBaseColor: result.inheritBaseColor }),
 				};
+				
+				// Explicitly delete properties that existed in original but are now undefined
+				const configWithDeletions = config as FolderConfigWithDeletions;
+				if (currentConfig.baseColor !== undefined && result.baseColor === undefined) {
+					configWithDeletions.__deleteBaseColor = true;
+				}
+				if (currentConfig.iconColor !== undefined && result.iconColor === undefined) {
+					configWithDeletions.__deleteIconColor = true;
+				}
+				if (currentConfig.folderColor !== undefined && result.folderColor === undefined) {
+					configWithDeletions.__deleteFolderColor = true;
+				}
+				if (currentConfig.textColor !== undefined && result.textColor === undefined) {
+					configWithDeletions.__deleteTextColor = true;
+				}
 
 				await this.plugin.folderManager.setFolderConfig(folderPath, config);
 				this.displayWithScrollPreservation(); // Refresh
@@ -557,7 +572,9 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			onOpen(): void {
 				const { contentEl } = this;
 				contentEl.empty();
-				contentEl.createEl('h2', { text: 'Edit palette' });
+				new Setting(contentEl)
+					.setHeading()
+					.setName('Edit palette');
 
 				// Name
 				new Setting(contentEl)
@@ -570,14 +587,16 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					});
 
 				// Colors
-				contentEl.createEl('h3', { text: 'Colors' });
+				new Setting(contentEl)
+					.setHeading()
+					.setName('Colors');
 				const colorsContainer = contentEl.createDiv();
 				colorsContainer.addClass('palette-editor-colors');
 
 				const renderColors = () => {
 					colorsContainer.empty();
 					this.palette.colors.forEach((color, i) => {
-						const colorSetting = new Setting(colorsContainer)
+						new Setting(colorsContainer)
 							.setName(`Color ${i + 1}`)
 							.addText(text => {
 								text.setValue(color);
@@ -688,7 +707,8 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setDesc('Regular expression to match file or folder names')
 					.addText(text => {
 						text.setValue(this.rule.pattern);
-						text.setPlaceholder('E.g., ^Archive|^Assets')
+						// eslint-disable-next-line obsidianmd/ui/sentence-case
+						text.setPlaceholder('e.g., ^Archive|^Assets')
 						text.onChange(value => {
 							this.rule.pattern = value;
 						});
@@ -697,6 +717,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Type
 				new Setting(contentEl)
 					.setName('Type')
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
 					.setDesc('Type of item to match: base (files), markdown (markdown files), or folder')
 					.addDropdown(dropdown => {
 						dropdown
@@ -724,9 +745,11 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Icon color (optional)
 				new Setting(contentEl)
 					.setName('Icon color (optional)')
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
 					.setDesc('Hex color for the icon (e.g., #FF0000). Leave empty to use default.')
 					.addText(text => {
 						text.setValue(this.rule.iconColor || '');
+						// eslint-disable-next-line obsidianmd/ui/sentence-case
 						text.setPlaceholder('#FF0000')
 						text.onChange(value => {
 							this.rule.iconColor = value.trim() || undefined;
@@ -761,7 +784,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 							// Validate regex
 							try {
 								new RegExp(this.rule.pattern);
-							} catch (e) {
+							} catch {
 								new Notice('Invalid regex pattern.');
 								return;
 							}
@@ -798,7 +821,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const sampleBaseColor = activePalette?.colors[0] || '#4ECDC4';
 		
 		const previewSetting = new Setting(containerEl)
-			.setName('Preview: Base color → Element colors')
+			.setName('Preview: base color → element colors')
 			.setDesc('');
 		
 		// Remove the description element to make it cleaner
@@ -868,27 +891,30 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			
 			// Icon color
 			const iconColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.iconColorTransformation);
-			this.addColorPreview(transformedContainer, 'Icon', iconColor, '🎨');
+			this.addColorPreview(transformedContainer, 'Icon', iconColor);
 			
 			// Folder color
 			const folderColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.folderColorTransformation);
-			this.addColorPreview(transformedContainer, 'Background', folderColor, '📁');
+			this.addColorPreview(transformedContainer, 'Background', folderColor);
 			
 			// Text color
 			const textColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.textColorTransformation);
-			this.addColorPreview(transformedContainer, 'Text', textColor, 'Aa');
+			this.addColorPreview(transformedContainer, 'Text', textColor);
 		};
 		
 		updatePreview();
 		
 		// Store update function for later use
-		(previewSetting.settingEl as any).updatePreview = updatePreview;
+		interface SettingElementWithPreview extends HTMLElement {
+			updatePreview?: () => void;
+		}
+		(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
 	}
 	
 	/**
 	 * Add a color preview box
 	 */
-	private addColorPreview(container: HTMLElement, label: string, color: string, icon: string): void {
+	private addColorPreview(container: HTMLElement, label: string, color: string): void {
 		const preview = container.createDiv();
 		setCssProps(preview, {
 			display: 'flex',
@@ -930,10 +956,14 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	 */
 	private updateAllPreviews(): void {
 		// Find previews by checking for updatePreview function on setting elements
+		interface SettingElementWithPreview extends HTMLElement {
+			updatePreview?: () => void;
+		}
 		const allSettings = this.containerEl.querySelectorAll('.setting-item');
 		allSettings.forEach(setting => {
-			if ((setting as any).updatePreview) {
-				(setting as any).updatePreview();
+			const settingWithPreview = setting as SettingElementWithPreview;
+			if (settingWithPreview.updatePreview) {
+				settingWithPreview.updatePreview();
 			}
 		});
 	}
@@ -961,10 +991,9 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		// Sample parent color
 		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
 		const parentColor = activePalette?.colors[0] || '#4ECDC4';
-		const nextSiblingColor = activePalette?.colors[1] || '#45B7D1';
 		
 		const previewSetting = new Setting(containerEl)
-			.setName('Preview: Parent → Child colors')
+			.setName('Preview: parent → child colors')
 			.setDesc('');
 		
 		// Remove the description element to make it cleaner
@@ -1096,7 +1125,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		updatePreview();
 		
 		// Store update function for later use
-		(previewSetting.settingEl as any).updatePreview = updatePreview;
+		interface SettingElementWithPreview extends HTMLElement {
+			updatePreview?: () => void;
+		}
+		(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
 	}
 
 	/**
@@ -1112,6 +1144,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (same as base)')
 					.addOption('lightness', 'Lightness adjustment')
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type);
 				dropdown.onChange(async (value) => {
@@ -1148,7 +1181,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							const numValue = value.trim() === '' ? 0 : parseFloat(value);
 							if (!isNaN(numValue)) {
-								(this.plugin.settings[settingKey] as any).adjustment = Math.max(-100, Math.min(100, numValue));
+								const transformation = this.plugin.settings[settingKey];
+								if (transformation.type === 'lightness') {
+									transformation.adjustment = Math.max(-100, Math.min(100, numValue));
+								}
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
 								this.updateAllPreviews();
@@ -1165,7 +1201,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							const numValue = value.trim() === '' ? 0 : parseFloat(value);
 							if (!isNaN(numValue)) {
-								(this.plugin.settings[settingKey] as any).hue = Math.max(-180, Math.min(180, numValue));
+								const transformation = this.plugin.settings[settingKey];
+								if (transformation.type === 'hsl') {
+									transformation.hue = Math.max(-180, Math.min(180, numValue));
+								}
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
 								this.updateAllPreviews();
@@ -1182,7 +1221,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							const numValue = value.trim() === '' ? 0 : parseFloat(value);
 							if (!isNaN(numValue)) {
-								(this.plugin.settings[settingKey] as any).saturation = Math.max(-100, Math.min(100, numValue));
+								const transformation = this.plugin.settings[settingKey];
+								if (transformation.type === 'hsl') {
+									transformation.saturation = Math.max(-100, Math.min(100, numValue));
+								}
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
 								this.updateAllPreviews();
@@ -1199,7 +1241,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							const numValue = value.trim() === '' ? 0 : parseFloat(value);
 							if (!isNaN(numValue)) {
-								(this.plugin.settings[settingKey] as any).lightness = Math.max(-100, Math.min(100, numValue));
+								const transformation = this.plugin.settings[settingKey];
+								if (transformation.type === 'hsl') {
+									transformation.lightness = Math.max(-100, Math.min(100, numValue));
+								}
 								await this.plugin.saveSettings();
 								await this.plugin.folderManager.updateSettings(this.plugin.settings);
 								this.updateAllPreviews();
@@ -1222,6 +1267,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (no inheritance)')
 					.addOption('lightness', 'Lightness adjustment')
+					// eslint-disable-next-line obsidianmd/ui/sentence-case
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type || 'lightness');
 				dropdown.onChange(async (value) => {
@@ -1406,7 +1452,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		const profiles = this.plugin.settings.profiles || [];
 		if (profiles.length > 0) {
 			profiles.forEach(profile => {
-				const profileSetting = new Setting(containerEl)
+				new Setting(containerEl)
 					.setName(profile.name)
 					.setDesc(this.plugin.settings.activeProfileId === profile.id ? 'Active' : 'Inactive')
 					.addButton(button => {
