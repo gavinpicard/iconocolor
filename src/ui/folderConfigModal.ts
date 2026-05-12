@@ -36,6 +36,7 @@ export class FolderConfigModal extends Modal {
 	// UI elements
 	private resultsContainer: HTMLElement;
 	private customInputContainer: HTMLElement;
+	private searchContainer: HTMLElement | null = null;
 	private previewEl: HTMLElement;
 	private previewIcon: HTMLElement;
 	private iconTabContent: HTMLElement;
@@ -173,53 +174,71 @@ export class FolderConfigModal extends Modal {
 			.setName('Icon pack')
 			.setDesc('')
 			.addDropdown(dropdown => {
-				// Add "All" option
+				// Populate the dropdown synchronously with the built-in options so
+				// it is immediately usable. Installed packs are inserted before
+				// the "Custom" entry once getInstalledIconPacks() resolves.
 				dropdown.addOption('all', 'All');
 				dropdown.addOption('lucide', 'Lucide');
-				
-				// Add installed icon packs
-				getInstalledIconPacks(this.app).then((installedPacks: IconPack[]) => {
-					for (const pack of installedPacks) {
-						if (pack.installed && pack.path) {
-							// Use the pack folder name as the option value for better matching
-							const packFolderName = pack.path.split('/').pop() || pack.id;
-							dropdown.addOption(packFolderName, pack.name);
-						}
-					}
-					
-					dropdown.addOption('custom', 'Custom');
-					
-					// Set initial value - handle icon pack IDs
-					let initialValue = this.currentSource || 'all';
-					if (initialValue !== 'all' && initialValue !== 'lucide' && initialValue !== 'simpleicons' && initialValue !== 'custom') {
-						// It's an icon pack ID - make sure it's in the dropdown
-						// Check both by ID and by folder name
-						const packExists = installedPacks.some((p: IconPack) => {
-							if (!p.installed || !p.path) return false;
-							const packFolderName = p.path.split('/').pop();
-							return p.id === initialValue || packFolderName === initialValue;
-						});
-						if (!packExists) {
-							initialValue = 'all'; // Fallback to 'all' if pack not found
-						} else {
-							// Use the folder name as the value
-							const matchingPack = installedPacks.find((p: IconPack) => {
-								if (!p.installed || !p.path) return false;
-								const packFolderName = p.path.split('/').pop();
-								return p.id === initialValue || packFolderName === initialValue;
-							});
-							if (matchingPack && matchingPack.path) {
-								initialValue = matchingPack.path.split('/').pop() || initialValue;
-							}
-						}
-					}
-					dropdown.setValue(initialValue);
-				}).catch(console.error);
-				
-				// Add custom option immediately (will be added again in promise, but that's fine)
 				dropdown.addOption('custom', 'Custom');
 				dropdown.setValue(this.currentSource || 'all');
-				
+
+				const selectEl = dropdown.selectEl;
+
+				void (async () => {
+					try {
+						const installedPacks = await getInstalledIconPacks(this.app);
+						const installedOnly = installedPacks.filter(
+							(p): p is IconPack & { path: string } => p.installed && !!p.path,
+						);
+
+						// Insert installed pack options before the "Custom" option so
+						// the order stays: All, Lucide, <packs...>, Custom.
+						const customOption = selectEl.querySelector<HTMLOptionElement>(
+							'option[value="custom"]',
+						);
+						for (const pack of installedOnly) {
+							const packFolderName = pack.path.split('/').pop() || pack.id;
+							if (selectEl.querySelector(`option[value="${CSS.escape(packFolderName)}"]`)) {
+								continue;
+							}
+							const optionEl = activeDocument.createElement('option');
+							optionEl.value = packFolderName;
+							optionEl.textContent = pack.name;
+							if (customOption) {
+								selectEl.insertBefore(optionEl, customOption);
+							} else {
+								selectEl.appendChild(optionEl);
+							}
+						}
+
+						// Resolve the actual selected value now that all installed
+						// packs are present. If the previously stored currentSource
+						// matches a pack by id or folder name, prefer that.
+						let resolved = this.currentSource || 'all';
+						if (
+							resolved !== 'all' &&
+							resolved !== 'lucide' &&
+							resolved !== 'simpleicons' &&
+							resolved !== 'custom'
+						) {
+							const matching = installedOnly.find(p => {
+								const packFolderName = p.path.split('/').pop();
+								return p.id === resolved || packFolderName === resolved;
+							});
+							if (matching) {
+								resolved = matching.path.split('/').pop() || resolved;
+							} else {
+								resolved = 'all';
+							}
+						}
+						if (dropdown.getValue() !== resolved) {
+							dropdown.setValue(resolved);
+						}
+					} catch (error) {
+						console.error('[Iconocolor] Failed to load installed icon packs:', error);
+					}
+				})();
+
 				dropdown.onChange(async (value) => {
 					this.currentSource = value;
 					if (value === 'custom') {
@@ -230,37 +249,37 @@ export class FolderConfigModal extends Modal {
 							window.clearTimeout(this.searchTimeout);
 							this.searchTimeout = null;
 						}
+						this.hideCustomInput();
 						await this.performSearch();
 					}
 				});
 			});
 
-		// Search (larger)
-		if (this.currentSource !== 'custom') {
-			const searchContainer = container.createDiv();
-			searchContainer.addClass('folder-config-search-large');
-			const searchInput = searchContainer.createEl('input');
-			searchInput.type = 'text';
-			searchInput.placeholder = 'Search icons...';
-			searchInput.value = this.searchQuery;
-			searchInput.addClass('folder-config-input-large');
-			searchInput.oninput = (e) => {
-				this.searchQuery = (e.target as HTMLInputElement).value;
-				// Debounce search - wait 300ms after user stops typing
-				if (this.searchTimeout !== null) {
-					window.clearTimeout(this.searchTimeout);
-				}
-				this.searchTimeout = window.setTimeout(() => {
-					void (async () => {
-						try {
-							await this.performSearch();
-						} catch (error) {
-							console.error('[Iconocolor] Error in search:', error);
-						}
-					})();
-				}, 300);
-			};
-		}
+		// Search bar - always present so switching between sources is symmetric.
+		// Visibility is toggled based on currentSource via show/hideCustomInput.
+		this.searchContainer = container.createDiv();
+		this.searchContainer.addClass('folder-config-search-large');
+		const searchInput = this.searchContainer.createEl('input');
+		searchInput.type = 'text';
+		searchInput.placeholder = 'Search icons...';
+		searchInput.value = this.searchQuery;
+		searchInput.addClass('folder-config-input-large');
+		searchInput.oninput = (e) => {
+			this.searchQuery = (e.target as HTMLInputElement).value;
+			// Debounce search - wait 300ms after user stops typing
+			if (this.searchTimeout !== null) {
+				window.clearTimeout(this.searchTimeout);
+			}
+			this.searchTimeout = window.setTimeout(() => {
+				void (async () => {
+					try {
+						await this.performSearch();
+					} catch (error) {
+						console.error('[Iconocolor] Error in search:', error);
+					}
+				})();
+			}, 300);
+		};
 
 		// Results grid (larger)
 		this.resultsContainer = container.createDiv();
@@ -269,19 +288,23 @@ export class FolderConfigModal extends Modal {
 		// Custom input
 		this.customInputContainer = container.createDiv();
 		this.customInputContainer.addClass('icon-picker-custom-input');
-		setCssProps(this.customInputContainer, {
-			display: this.currentSource === 'custom' ? 'block' : 'none',
-		});
 
 		const customInput = this.customInputContainer.createEl('input');
 		customInput.type = 'text';
 		customInput.placeholder = 'Icon path or URL';
-		customInput.value = this.currentSource === 'custom' ? (this.result.icon || '') : '';
+		customInput.value = this.result.icon || '';
 		customInput.addClass('folder-config-input-large');
 		customInput.oninput = (e) => {
 			this.result.icon = (e.target as HTMLInputElement).value;
 			this.updatePreview().catch(console.error);
 		};
+
+		// Apply initial visibility based on the active source.
+		if (this.currentSource === 'custom') {
+			this.showCustomInput();
+		} else {
+			this.hideCustomInput();
+		}
 	}
 
 	private buildColorsTab(): void {
@@ -1381,6 +1404,25 @@ export class FolderConfigModal extends Modal {
 		setCssProps(this.customInputContainer, {
 			display: 'block',
 		});
+		if (this.searchContainer) {
+			setCssProps(this.searchContainer, {
+				display: 'none',
+			});
+		}
+	}
+
+	private hideCustomInput(): void {
+		setCssProps(this.customInputContainer, {
+			display: 'none',
+		});
+		setCssProps(this.resultsContainer, {
+			display: 'grid',
+		});
+		if (this.searchContainer) {
+			setCssProps(this.searchContainer, {
+				display: 'block',
+			});
+		}
 	}
 
 	private async updatePreview(): Promise<void> {
