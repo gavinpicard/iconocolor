@@ -27,7 +27,7 @@ export class BrowsePacksModal extends Modal {
 					.setValue(this.searchQuery)
 					.onChange((value) => {
 						this.searchQuery = value;
-						this.performSearch().catch(console.error);
+						void this.performSearch();
 					});
 			});
 
@@ -35,8 +35,7 @@ export class BrowsePacksModal extends Modal {
 		this.resultsContainer = contentEl.createDiv();
 		this.resultsContainer.addClass('browse-packs-results');
 
-			// Initial load
-			this.performSearch().catch(console.error);
+		void this.performSearch();
 	}
 
 	private resultsContainer: HTMLElement;
@@ -93,15 +92,19 @@ export class BrowsePacksModal extends Modal {
 			packMeta.createEl('span', { text: `${pack.iconCount.toLocaleString()} icons` });
 
 			if (isInstalled) {
-				// Get actual icon count from installed pack
-				getInstalledIconPacks(this.app).then(installedPacks => {
-					const installedPack = installedPacks.find(p => p.id === pack.id && p.installed);
-					if (installedPack && installedPack.iconCount) {
-						packMeta.createEl('span', { text: ` • ${installedPack.iconCount} installed` });
-					} else {
-						packMeta.createEl('span', { text: 'Installed' });
+				void (async () => {
+					try {
+						const installedPacks = await getInstalledIconPacks(this.app);
+						const installedPack = installedPacks.find(p => p.id === pack.id && p.installed);
+						if (installedPack && installedPack.iconCount) {
+							packMeta.createEl('span', { text: ` • ${installedPack.iconCount} installed` });
+						} else {
+							packMeta.createEl('span', { text: 'Installed' });
+						}
+					} catch (error) {
+						console.error('[Iconocolor] Failed to load installed pack info:', error);
 					}
-				}).catch(console.error);
+				})();
 			}
 
 			// Action button

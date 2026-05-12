@@ -9,6 +9,11 @@ import { setCssProps } from '../utils/domUtils';
 
 export class IconocolorSettingTab extends PluginSettingTab {
 	plugin: IconocolorPlugin;
+	// Containers for sections that need targeted re-rendering, so we don't
+	// rebuild the entire settings tab (which causes a visible flash) every
+	// time a single rule or pack is added/removed.
+	private rulesListEl: HTMLElement | null = null;
+	private packsListEl: HTMLElement | null = null;
 
 	constructor(app: App, plugin: IconocolorPlugin) {
 		super(app, plugin);
@@ -162,7 +167,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			palette.colors.forEach(color => {
 				const swatch = colorContainer.createDiv();
 				swatch.addClass('color-swatch');
-				swatch.style.backgroundColor = color;
+				swatch.style.setProperty('--iconocolor-swatch-color', color);
 				swatch.title = color;
 			});
 
@@ -290,56 +295,20 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					});
 			});
 
-		// List default icon rules
 		if (!this.plugin.settings.defaultIconRules) {
 			this.plugin.settings.defaultIconRules = [];
 		}
 
-		this.plugin.settings.defaultIconRules.forEach((rule, index) => {
-			const ruleSetting = new Setting(containerEl)
-				.setName(rule.pattern || 'New rule')
-				.setDesc(`Type: ${rule.type} | Icon: ${rule.icon}${rule.iconColor ? ` | Color: ${rule.iconColor}` : ''}`);
+		this.rulesListEl = containerEl.createDiv('iconocolor-rules-list');
+		this.renderDefaultIconRulesList();
 
-			ruleSetting.addToggle(toggle => {
-				toggle
-					.setValue(rule.enabled)
-					.onChange(async (value) => {
-						rule.enabled = value;
-						await this.plugin.saveSettings();
-						await this.plugin.folderManager.updateSettings(this.plugin.settings);
-						this.displayWithScrollPreservation();
-					});
-			});
-
-			ruleSetting.addButton(button => {
-				button
-					.setButtonText('Edit')
-					.onClick(() => {
-						this.editDefaultIconRule(index);
-					});
-			});
-
-			ruleSetting.addButton(button => {
-				button
-					.setButtonText('Delete')
-					.setWarning()
-					.onClick(async () => {
-							this.plugin.settings.defaultIconRules.splice(index, 1);
-							await this.plugin.saveSettings();
-							await this.plugin.folderManager.updateSettings(this.plugin.settings);
-							this.displayWithScrollPreservation();
-					});
-			});
-		});
-
-		// Add new rule button
 		new Setting(containerEl)
 			.addButton(button => {
 				button
 					.setButtonText('Add rule')
 					.setCta()
-					.onClick(async () => {
-						await this.addDefaultIconRule();
+					.onClick(() => {
+						void this.addDefaultIconRule();
 					});
 			});
 
@@ -357,14 +326,13 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setCta()
 					.onClick(() => {
 						new BrowsePacksModal(this.app, () => {
-							this.displayWithScrollPreservation();
+							this.refreshInstalledPacksList();
 						}).open();
 					});
 			});
-		const installedPacksPromise = getInstalledIconPacks(this.app);
-		installedPacksPromise.then(installedPacks => {
-			this.renderInstalledPacks(installedPacks.filter(p => p.installed));
-		}).catch(console.error);
+
+		this.packsListEl = containerEl.createDiv('iconocolor-packs-list');
+		this.refreshInstalledPacksList();
 
 		// Configured folders section
 		const folders = Object.keys(this.plugin.settings.folderConfigs);
@@ -421,49 +389,114 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		}
 	}
 
-	private renderInstalledPacks(installedPacks: IconPack[]): void {
-		const containerEl = this.containerEl;
-		
-		// Find the Icon Packs heading
-		const iconPacksHeading = Array.from(containerEl.querySelectorAll('.setting-item-heading')).find(
-			heading => heading.textContent === 'Icon packs'
-		);
-		
-		if (!iconPacksHeading) return;
-		
-		// Find the Browse Packs setting
-		const browseSetting = Array.from(containerEl.querySelectorAll('.setting-item')).find(
-			setting => setting.querySelector('.setting-item-name')?.textContent === 'Browse icon packs'
-		);
-		
-		if (installedPacks.length > 0) {
-			for (const pack of installedPacks) {
-				const packSetting = new Setting(containerEl)
-					.setName(pack.name)
-					.setDesc(pack.description || `Icon pack with ${pack.iconCount || 0} icons`);
+	/**
+	 * Re-render only the default icon rules list (in `this.rulesListEl`).
+	 * This avoids tearing down the entire settings tab when a single rule
+	 * is added, edited, toggled, or removed.
+	 */
+	private renderDefaultIconRulesList(): void {
+		const listEl = this.rulesListEl;
+		if (!listEl) return;
+		listEl.empty();
 
-				// Show icon count
-				if (pack.iconCount !== undefined) {
-					const countText = packSetting.descEl.createEl('span', {
-						text: ` • ${pack.iconCount.toLocaleString()} icons`,
-					});
-					setCssProps(countText, {
-						fontWeight: 'bold',
-					});
-				}
+		const rules = this.plugin.settings.defaultIconRules ?? [];
+		rules.forEach((rule, index) => {
+			const ruleSetting = new Setting(listEl)
+				.setName(rule.pattern || 'New rule')
+				.setDesc(`Type: ${rule.type} | Icon: ${rule.icon}${rule.iconColor ? ` | Color: ${rule.iconColor}` : ''}`);
 
-				packSetting.addButton(button => {
-					button
-						.setButtonText('Installed')
-						.setDisabled(true);
+			ruleSetting.addToggle(toggle => {
+				toggle
+					.setValue(rule.enabled)
+					.onChange((value) => {
+						rule.enabled = value;
+						void (async () => {
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+						})();
+					});
+			});
+
+			ruleSetting.addButton(button => {
+				button
+					.setButtonText('Edit')
+					.onClick(() => {
+						this.editDefaultIconRule(index);
+					});
+			});
+
+			ruleSetting.addButton(button => {
+				button
+					.setButtonText('Delete')
+					.setWarning()
+					.onClick(() => {
+						void (async () => {
+							this.plugin.settings.defaultIconRules.splice(index, 1);
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.renderDefaultIconRulesList();
+						})();
+					});
+			});
+		});
+	}
+
+	/**
+	 * Re-fetch installed packs and re-render only the icon packs list (in
+	 * `this.packsListEl`). Called on initial render, after a pack download
+	 * completes, and after a pack deletion succeeds.
+	 */
+	private refreshInstalledPacksList(): void {
+		const listEl = this.packsListEl;
+		if (!listEl) return;
+		void (async () => {
+			try {
+				const installedPacks = await getInstalledIconPacks(this.app);
+				this.renderInstalledPacksList(installedPacks.filter(p => p.installed));
+			} catch (error) {
+				console.error('[Iconocolor] Failed to load installed icon packs:', error);
+			}
+		})();
+	}
+
+	private renderInstalledPacksList(installedPacks: IconPack[]): void {
+		const listEl = this.packsListEl;
+		if (!listEl) return;
+		listEl.empty();
+
+		if (installedPacks.length === 0) {
+			new Setting(listEl)
+				.setName('No icon packs installed')
+				.setDesc('Click "browse packs" above to download icon packs.');
+			return;
+		}
+
+		for (const pack of installedPacks) {
+			const packSetting = new Setting(listEl)
+				.setName(pack.name)
+				.setDesc(pack.description || `Icon pack with ${pack.iconCount || 0} icons`);
+
+			if (pack.iconCount !== undefined) {
+				const countText = packSetting.descEl.createEl('span', {
+					text: ` • ${pack.iconCount.toLocaleString()} icons`,
 				});
+				setCssProps(countText, {
+					fontWeight: 'bold',
+				});
+			}
 
-				// Delete button
-				packSetting.addButton(button => {
-					button
-						.setButtonText('Delete')
-						.setWarning()
-						.onClick(async () => {
+			packSetting.addButton(button => {
+				button
+					.setButtonText('Installed')
+					.setDisabled(true);
+			});
+
+			packSetting.addButton(button => {
+				button
+					.setButtonText('Delete')
+					.setWarning()
+					.onClick(() => {
+						void (async () => {
 							const confirmed = await new ConfirmModal(
 								this.app,
 								`Are you sure you want to delete "${pack.name}"? This will remove all ${pack.iconCount || 0} icons from this pack.`,
@@ -477,28 +510,15 @@ export class IconocolorSettingTab extends PluginSettingTab {
 							const result = await deleteIconPack(this.app, pack);
 							if (result.success) {
 								new Notice(`${pack.name} deleted successfully.`);
-								this.displayWithScrollPreservation();
+								this.refreshInstalledPacksList();
 							} else {
 								new Notice(`Failed to delete ${pack.name}: ${result.error || 'Unknown error'}`);
 								button.setButtonText('Delete');
 								button.setDisabled(false);
 							}
-						});
-				});
-				
-				// Insert after browse setting
-				if (browseSetting) {
-					browseSetting.insertAdjacentElement('afterend', packSetting.settingEl);
-				}
-			}
-		} else {
-			const emptyMsg = new Setting(containerEl)
-				.setName('No icon packs installed')
-				.setDesc('Click "browse packs" above to download icon packs.');
-			
-			if (browseSetting) {
-				browseSetting.insertAdjacentElement('afterend', emptyMsg.settingEl);
-			}
+						})();
+					});
+			});
 		}
 	}
 
@@ -600,25 +620,65 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				const colorsContainer = contentEl.createDiv();
 				colorsContainer.addClass('palette-editor-colors');
 
+				// Each color row owns three inputs: a native color picker, a
+				// hex text field, and a remove button. Rows are constructed
+				// individually so that typing into the text field never triggers
+				// a re-render of the whole list (which would steal focus).
+				const buildColorRow = (i: number, color: string): HTMLElement => {
+					const row = activeDocument.createElement('div');
+					row.addClass('palette-editor-color-row');
+
+					const label = row.createEl('span', { text: `Color ${i + 1}` });
+					label.addClass('palette-editor-color-label');
+
+					const picker = row.createEl('input');
+					picker.type = 'color';
+					picker.addClass('palette-editor-color-picker');
+					picker.value = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#000000';
+
+					const swatch = row.createEl('div');
+					swatch.addClass('palette-editor-color-swatch');
+					swatch.style.setProperty('--iconocolor-swatch-color', picker.value);
+
+					const textInput = row.createEl('input');
+					textInput.type = 'text';
+					textInput.addClass('palette-editor-color-text');
+					textInput.value = color;
+					textInput.placeholder = '#RRGGBB';
+
+					const removeBtn = row.createEl('button', { text: 'Remove' });
+					removeBtn.addClass('palette-editor-color-remove');
+
+					// Picker updates both the data model and the text field.
+					picker.oninput = () => {
+						this.palette.colors[i] = picker.value;
+						textInput.value = picker.value;
+						swatch.style.setProperty('--iconocolor-swatch-color', picker.value);
+					};
+
+					// Typing in the text input updates the data and, when the
+					// value parses as a hex color, syncs the picker + swatch.
+					textInput.oninput = () => {
+						const value = textInput.value;
+						this.palette.colors[i] = value;
+						if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+							picker.value = value;
+							swatch.style.setProperty('--iconocolor-swatch-color', value);
+						}
+					};
+
+					removeBtn.onclick = () => {
+						this.palette.colors.splice(i, 1);
+						renderColors();
+					};
+
+					return row;
+				};
+
 				const renderColors = () => {
 					colorsContainer.empty();
 					this.palette.colors.forEach((color, i) => {
-						new Setting(colorsContainer)
-							.setName(`Color ${i + 1}`)
-							.addText(text => {
-								text.setValue(color);
-								text.onChange(value => {
-									this.palette.colors[i] = value;
-									renderColors();
-								});
-							})
-							.addButton(button => {
-								button.setButtonText('Remove');
-								button.onClick(() => {
-									this.palette.colors.splice(i, 1);
-									renderColors();
-								});
-							});
+						colorsContainer.appendChild(buildColorRow(i, color));
 					});
 				};
 
@@ -630,7 +690,8 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						button.setButtonText('Add color');
 						button.onClick(() => {
 							this.palette.colors.push('#000000');
-							renderColors();
+							const newIndex = this.palette.colors.length - 1;
+							colorsContainer.appendChild(buildColorRow(newIndex, '#000000'));
 						});
 					});
 
@@ -817,7 +878,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					this.plugin.settings.defaultIconRules[index] = editedRule;
 					await this.plugin.saveSettings();
 					await this.plugin.folderManager.updateSettings(this.plugin.settings);
-					this.displayWithScrollPreservation();
+					this.renderDefaultIconRulesList();
 				})();
 			}
 		).open();

@@ -506,7 +506,9 @@
 
 .folder-config-toggle-row {
 	margin-top: 12px;
+	margin-bottom: 12px;
 	padding-top: 12px;
+	padding-bottom: 12px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -709,6 +711,58 @@
 .iconocolor-profile-name {
 	font-weight: 500;
 	color: var(--text-normal);
+}
+
+/* Palette switch modal */
+.iconocolor-palette-switch-modal .modal-content {
+	padding: 20px;
+}
+
+.iconocolor-palettes-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.iconocolor-palette-item {
+	padding: 12px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-secondary);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.iconocolor-palette-item:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.iconocolor-palette-item.is-active {
+	border-color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+}
+
+.iconocolor-palette-name {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.iconocolor-palette-swatches {
+	display: flex;
+	gap: 6px;
+}
+
+.iconocolor-palette-swatch {
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--iconocolor-swatch-color, var(--background-modifier-border));
 }
 
 /* Folder config modal - modern compact layout */
@@ -986,6 +1040,7 @@
 	height: 24px;
 	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border);
+	background-color: var(--iconocolor-swatch-color, var(--background-modifier-border));
 	cursor: pointer;
 }
 
@@ -1018,4 +1073,49 @@
 	flex-direction: column;
 	gap: 8px;
 	margin: 8px 0;
+}
+
+.palette-editor-color-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.palette-editor-color-label {
+	min-width: 64px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.palette-editor-color-picker {
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 50%;
+	cursor: pointer;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+	flex-shrink: 0;
+}
+
+.palette-editor-color-text {
+	width: 90px;
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	padding: 4px 6px;
+}
+
+.palette-editor-color-swatch {
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--iconocolor-swatch-color, var(--background-modifier-border));
+	flex-shrink: 0;
+}
+
+.palette-editor-color-remove {
+	margin-left: auto;
 }

@@ -1,5 +1,5 @@
 import { Plugin, TFolder, Modal, Notice, App } from 'obsidian';
-import { IconocolorSettings, FolderConfig, SettingsProfile, FolderConfigWithDeletions } from './types';
+import { IconocolorSettings, FolderConfig, SettingsProfile, FolderConfigWithDeletions, ColorPalette } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { FolderManager } from './folderManager';
 import { IconocolorSettingTab } from './ui/settingsTab';
@@ -76,24 +76,61 @@ export default class IconocolorPlugin extends Plugin {
 			},
 		});
 
-		// Add command to switch profiles
 		this.addCommand({
 			id: 'switch-profile',
 			name: 'Switch profile',
-			callback: async () => {
+			callback: () => {
 				const profiles = this.settings.profiles || [];
 				if (profiles.length === 0) {
 					new Notice('No profiles available. Create a profile in settings first.');
 					return;
 				}
 
-				// Create a simple modal to select profile
-				const modal = new ProfileSwitchModal(this.app, profiles, async (profileId: string) => {
-					await this.loadProfile(profileId);
+				const modal = new ProfileSwitchModal(this.app, profiles, (profileId: string) => {
+					void this.loadProfile(profileId);
 				});
 				modal.open();
 			},
 		});
+
+		this.addCommand({
+			id: 'switch-color-palette',
+			name: 'Switch color palette',
+			callback: () => {
+				const palettes = this.settings.colorPalettes || [];
+				if (palettes.length === 0) {
+					new Notice('No color palettes available. Create one in settings first.');
+					return;
+				}
+
+				const modal = new PaletteSwitchModal(
+					this.app,
+					palettes,
+					this.settings.activePaletteIndex ?? 0,
+					(index: number) => {
+						void this.setActivePalette(index);
+					},
+				);
+				modal.open();
+			},
+		});
+	}
+
+	/**
+	 * Switch to a color palette by index. Public so the palette-switch
+	 * command can call it.
+	 */
+	async setActivePalette(index: number): Promise<void> {
+		const palettes = this.settings.colorPalettes || [];
+		const palette = palettes[index];
+		if (!palette) {
+			new Notice('Color palette not found');
+			return;
+		}
+		this.settings.activePaletteIndex = index;
+		await this.saveSettings();
+		await this.folderManager.updateSettings(this.settings);
+		new Notice(`Palette "${palette.name}" applied`);
 	}
 
 	/**
@@ -318,9 +355,9 @@ export { IconocolorPlugin };
  */
 class ProfileSwitchModal extends Modal {
 	private profiles: SettingsProfile[];
-	private onSelect: (profileId: string) => Promise<void>;
+	private onSelect: (profileId: string) => void;
 
-	constructor(app: App, profiles: SettingsProfile[], onSelect: (profileId: string) => Promise<void>) {
+	constructor(app: App, profiles: SettingsProfile[], onSelect: (profileId: string) => void) {
 		super(app);
 		this.profiles = profiles;
 		this.onSelect = onSelect;
@@ -334,13 +371,69 @@ class ProfileSwitchModal extends Modal {
 		contentEl.createEl('h2', { text: 'Switch profile' });
 
 		const profilesList = contentEl.createDiv('iconocolor-profiles-list');
-		
+
 		this.profiles.forEach(profile => {
 			const profileItem = profilesList.createDiv('iconocolor-profile-item');
 			profileItem.createEl('div', { text: profile.name, cls: 'iconocolor-profile-name' });
-			
-			profileItem.onclick = async () => {
-				await this.onSelect(profile.id);
+
+			profileItem.onclick = () => {
+				this.onSelect(profile.id);
+				this.close();
+			};
+		});
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
+/**
+ * Modal for switching the active color palette from the command palette.
+ */
+class PaletteSwitchModal extends Modal {
+	private palettes: ColorPalette[];
+	private activeIndex: number;
+	private onSelect: (index: number) => void;
+
+	constructor(
+		app: App,
+		palettes: ColorPalette[],
+		activeIndex: number,
+		onSelect: (index: number) => void,
+	) {
+		super(app);
+		this.palettes = palettes;
+		this.activeIndex = activeIndex;
+		this.onSelect = onSelect;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('iconocolor-palette-switch-modal');
+
+		contentEl.createEl('h2', { text: 'Switch color palette' });
+
+		const list = contentEl.createDiv('iconocolor-palettes-list');
+
+		this.palettes.forEach((palette, index) => {
+			const item = list.createDiv('iconocolor-palette-item');
+			if (index === this.activeIndex) {
+				item.addClass('is-active');
+			}
+
+			item.createEl('div', { text: palette.name, cls: 'iconocolor-palette-name' });
+
+			const swatchesEl = item.createDiv('iconocolor-palette-swatches');
+			palette.colors.forEach(color => {
+				const swatch = swatchesEl.createDiv('iconocolor-palette-swatch');
+				swatch.style.setProperty('--iconocolor-swatch-color', color);
+			});
+
+			item.onclick = () => {
+				this.onSelect(index);
 				this.close();
 			};
 		});

@@ -2,6 +2,8 @@
 
 An all-in-one Obsidian plugin for customizing folder icons, icon colors, and folder colors in the file explorer with powerful color transformation and inheritance systems.
 
+![Iconocolor demo](https://raw.githubusercontent.com/gavinpicard/iconocolor/main/assets/demo.gif)
+
 ## Features
 
 - 🎨 **Folder Icons**: Add custom icons (SVG, PNG, or URLs) to any folder
