@@ -67,7 +67,10 @@ export default defineConfig([
           ignoreRegex: [
             "^None \\(.*\\)$",
             "^[A-Z].*adjustment$",
-            "^#[A-Z]+$",
+            // Match standalone hex color literals (e.g. #FF0000, #ff0, #3B82F6).
+            // The previous expression only allowed uppercase letters and missed
+            // digits, so it failed to ignore real hex codes.
+            "^#[A-Fa-f0-9]{3,8}$",
           ],
         },
       ],

@@ -3,9 +3,30 @@
  */
 
 import { App, TFile, TFolder, requestUrl } from 'obsidian';
-import * as JSZip from 'jszip';
+import { unzip, type Unzipped } from 'fflate';
 import { ensureIconsFolderExists } from './iconDownloader';
 import { clearIconCache } from './iconService';
+
+/**
+ * Promise-friendly wrapper around fflate's callback-based `unzip`. Returns a
+ * map of zip entry paths to their raw byte contents.
+ *
+ * fflate is used in place of JSZip because JSZip ships a bundled `setImmediate`
+ * polyfill that calls `new Function(...)`. That triggers the Obsidian plugin
+ * reviewer's "Dynamic Code Execution" disclosure even though we never invoke
+ * it ourselves, so we avoid the dependency entirely.
+ */
+function unzipAsync(data: Uint8Array): Promise<Unzipped> {
+	return new Promise((resolve, reject) => {
+		unzip(data, (err, unzipped) => {
+			if (err) {
+				reject(err);
+				return;
+			}
+			resolve(unzipped);
+		});
+	});
+}
 
 export interface IconPack {
 	id: string;
@@ -344,29 +365,25 @@ export async function downloadIconPack(
 			return { success: false, error: `Failed to download: ${error instanceof Error ? error.message : 'Unknown error'}. Please download manually from: ${pack.downloadUrl}` };
 		}
 		
-		const zip = await JSZip.loadAsync(arrayBuffer);
+		const unzipped = await unzipAsync(new Uint8Array(arrayBuffer));
 		let downloadedCount = 0;
 
 		const svgFiles: Array<{ path: string; content: string }> = [];
 
-		const fileEntries: Array<{ path: string; file: JSZip.JSZipObject }> = [];
-		zip.forEach((relativePath: string, file: JSZip.JSZipObject) => {
-			if (!file.dir && relativePath.endsWith('.svg')) {
-				fileEntries.push({ path: relativePath, file });
+		// Decode SVG entries directly. fflate hands us a plain object keyed by
+		// the zip path with `Uint8Array` values; directories end with '/' and
+		// are skipped automatically because we filter on the .svg extension.
+		const decoder = new TextDecoder();
+		for (const [relativePath, bytes] of Object.entries(unzipped)) {
+			if (relativePath.endsWith('/') || !relativePath.endsWith('.svg')) {
+				continue;
 			}
-		});
-
-		// Extract all SVG files in parallel
-		await Promise.all(
-			fileEntries.map(async ({ path, file }) => {
-				try {
-					const content = await file.async('string');
-					svgFiles.push({ path, content });
-				} catch (error) {
-					console.warn(`Failed to extract ${path}:`, error);
-				}
-			})
-		);
+			try {
+				svgFiles.push({ path: relativePath, content: decoder.decode(bytes) });
+			} catch (error) {
+				console.warn(`Failed to decode ${relativePath}:`, error);
+			}
+		}
 
 		// Save SVG files to the pack folder
 		// Process in batches to avoid overwhelming the vault API

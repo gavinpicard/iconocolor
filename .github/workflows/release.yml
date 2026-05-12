@@ -1,0 +1,71 @@
+# Build the plugin and publish main.js / manifest.json / styles.css as
+# attested artifacts to a GitHub Release when a tag like `1.2.0` is pushed.
+#
+# The release tag MUST match the `version` field in manifest.json (Obsidian
+# requirement). A typical release looks like:
+#
+#   npm version patch          # bumps manifest.json + versions.json
+#   git push --follow-tags     # pushes the tag and triggers this workflow
+#
+# `id-token: write` and `attestations: write` are required so that
+# `actions/attest-build-provenance` can sign the release artifacts and address
+# the "GitHub artifact attestation" item on the Obsidian plugin scorecard.
+
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Verify the tag matches the manifest version so we never publish a
+          # release whose assets don't match what Obsidian's plugin registry
+          # will resolve.
+          manifest_version=$(node -p "require('./manifest.json').version")
+          if [ "$TAG" != "$manifest_version" ]; then
+            echo "Tag '$TAG' does not match manifest version '$manifest_version'." >&2
+            exit 1
+          fi
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            main.js manifest.json styles.css

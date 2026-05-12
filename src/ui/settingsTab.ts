@@ -644,7 +644,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					textInput.type = 'text';
 					textInput.addClass('palette-editor-color-text');
 					textInput.value = color;
-					textInput.placeholder = '#RRGGBB';
+					textInput.placeholder = '#ff0000';
 
 					const removeBtn = row.createEl('button', { text: 'Remove' });
 					removeBtn.addClass('palette-editor-color-remove');
@@ -777,8 +777,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setDesc('Regular expression to match file or folder names')
 					.addText(text => {
 						text.setValue(this.rule.pattern);
-						// eslint-disable-next-line obsidianmd/ui/sentence-case
-						text.setPlaceholder('e.g., ^Archive|^Assets')
+						text.setPlaceholder('E.g., ^archive|^assets')
 						text.onChange(value => {
 							this.rule.pattern = value;
 						});
@@ -787,7 +786,6 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Type
 				new Setting(contentEl)
 					.setName('Type')
-					 
 					.setDesc('Type of item to match: base (files), markdown (markdown files), or folder')
 					.addDropdown(dropdown => {
 						dropdown
@@ -815,12 +813,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Icon color (optional)
 				new Setting(contentEl)
 					.setName('Icon color (optional)')
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
-					.setDesc('Hex color for the icon (e.g., #FF0000). Leave empty to use default.')
+					.setDesc('Hex color for the icon (e.g., #ff0000). Leave empty to use default.')
 					.addText(text => {
 						text.setValue(this.rule.iconColor || '');
-						// eslint-disable-next-line obsidianmd/ui/sentence-case
-						text.setPlaceholder('#FF0000')
+						text.setPlaceholder('#ff0000')
 						text.onChange(value => {
 							this.rule.iconColor = value.trim() || undefined;
 						});
@@ -1216,7 +1212,6 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (same as base)')
 					.addOption('lightness', 'Lightness adjustment')
-					 
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type);
 				dropdown.onChange(async (value) => {
@@ -1339,7 +1334,6 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (no inheritance)')
 					.addOption('lightness', 'Lightness adjustment')
-					 
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type || 'lightness');
 				dropdown.onChange(async (value) => {

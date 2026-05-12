@@ -112,6 +112,14 @@ Next sibling: Base = #EC4899 (pink)
 
 The gradient automatically distributes across all children, creating smooth color transitions.
 
+## Data and Privacy
+
+Iconocolor stores all of its data inside your vault's `.obsidian` config folder. It does **not** read or modify any of your notes.
+
+- **Settings** (folder configs, palettes, profiles, default-icon rules) are stored in `.obsidian/plugins/iconocolor/data.json`.
+- **Icon packs** that you choose to download are saved as SVG files under `.obsidian/icons/<pack-id>/`. Only this directory is read or written by the plugin.
+- **Network access** is only used when you explicitly click "Download" on an icon pack in **Settings → Iconocolor → Browse icon packs**. The plugin uses Obsidian's `requestUrl` to fetch the public ZIP from the upstream icon-pack repository (e.g. simple-icons, tabler-icons). No telemetry, analytics, or background requests are made.
+
 ## Development
 
 ### Setup

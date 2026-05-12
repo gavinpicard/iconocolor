@@ -1,6 +1,6 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 
 const banner =
 `/*
@@ -31,7 +31,13 @@ const context = await esbuild.context({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		...builtins],
+		// Mark all Node.js built-in modules as external so they don't get
+		// inadvertently bundled into the plugin's main.js.
+		...builtinModules,
+		// Cover the `node:` prefixed import form too (e.g. `node:fs`), which
+		// `builtinModules` does not include by default.
+		...builtinModules.map((m) => `node:${m}`),
+	],
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
