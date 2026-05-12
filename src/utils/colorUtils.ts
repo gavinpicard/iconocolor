@@ -45,7 +45,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
  */
 export function generateGradientColors(palette: string[], count: number): string[] {
 	if (palette.length === 0) return [];
-	if (palette.length === 1) return Array(count).fill(palette[0]);
+	if (palette.length === 1) return Array<string>(count).fill(palette[0]);
 	if (count <= palette.length) return palette.slice(0, count);
 	
 	const colors: string[] = [];

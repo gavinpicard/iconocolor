@@ -17,7 +17,9 @@ export interface FolderConfigResult {
 	inheritBaseColor?: boolean;
 }
 
-type IconSource = 'all' | 'lucide' | 'simpleicons' | 'custom' | 'local' | string; // string for icon pack IDs
+// The literal union is kept for editor autocomplete, while `(string & {})` keeps
+// arbitrary icon-pack IDs assignable without collapsing the union to plain `string`.
+type IconSource = 'all' | 'lucide' | 'simpleicons' | 'custom' | 'local' | (string & {});
 
 export class FolderConfigModal extends Modal {
 	private result: FolderConfigResult = {};
@@ -148,13 +150,15 @@ export class FolderConfigModal extends Modal {
 		if (this.currentSource === 'custom') {
 			this.showCustomInput();
 		} else {
-			setTimeout(async () => {
-				try {
-					await this.performSearch();
-					await this.renderResults();
-				} catch (error) {
-					console.error('[Iconocolor] Error in initial search:', error);
-				}
+			window.setTimeout(() => {
+				void (async () => {
+					try {
+						await this.performSearch();
+						await this.renderResults();
+					} catch (error) {
+						console.error('[Iconocolor] Error in initial search:', error);
+					}
+				})();
 			}, 100);
 		}
 		this.updatePreview().catch(console.error);
@@ -223,7 +227,7 @@ export class FolderConfigModal extends Modal {
 					} else {
 						// Clear any pending search timeout
 						if (this.searchTimeout !== null) {
-							clearTimeout(this.searchTimeout);
+							window.clearTimeout(this.searchTimeout);
 							this.searchTimeout = null;
 						}
 						await this.performSearch();
@@ -244,14 +248,16 @@ export class FolderConfigModal extends Modal {
 				this.searchQuery = (e.target as HTMLInputElement).value;
 				// Debounce search - wait 300ms after user stops typing
 				if (this.searchTimeout !== null) {
-					clearTimeout(this.searchTimeout);
+					window.clearTimeout(this.searchTimeout);
 				}
-				this.searchTimeout = window.setTimeout(async () => {
-					try {
-						await this.performSearch();
-					} catch (error) {
-						console.error('[Iconocolor] Error in search:', error);
-					}
+				this.searchTimeout = window.setTimeout(() => {
+					void (async () => {
+						try {
+							await this.performSearch();
+						} catch (error) {
+							console.error('[Iconocolor] Error in search:', error);
+						}
+					})();
 				}, 300);
 			};
 		}
@@ -1417,11 +1423,11 @@ export class FolderConfigModal extends Modal {
 							iconColor = this.applyTransformation(baseColor, this.settings.iconColorTransformation);
 						}
 					}
-					const iconElement = await renderIconAsSvg(iconInfo!, 16, iconColor, this.app);
+					const iconElement = await renderIconAsSvg(iconInfo, 16, iconColor, this.app);
 					this.previewIcon.appendChild(iconElement);
 				})().catch(console.error);
 			} else if (this.result.icon && (this.result.icon.startsWith('http') || this.result.icon.startsWith('/'))) {
-				const img = document.createElement('img');
+				const img = activeDocument.createElement('img');
 				img.src = this.result.icon;
 				img.alt = 'Preview';
 				setCssProps(img, {
@@ -1492,7 +1498,7 @@ export class FolderConfigModal extends Modal {
 		const { contentEl } = this;
 		// Clear any pending search timeout
 		if (this.searchTimeout !== null) {
-			clearTimeout(this.searchTimeout);
+			window.clearTimeout(this.searchTimeout);
 			this.searchTimeout = null;
 		}
 		contentEl.empty();

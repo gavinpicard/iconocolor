@@ -4,7 +4,7 @@
  */
 
 import { App, getIconIds, TFile, setIcon } from 'obsidian';
-import { setCssProps } from './domUtils';
+import { setCssProps, appendSvgString } from './domUtils';
 
 export interface IconInfo {
 	name: string;
@@ -226,7 +226,10 @@ export async function getAllIconsFromPacks(app: App, forceRefresh: boolean = fal
  */
 export async function searchIcons(
 	query: string,
-	source: 'lucide' | 'simpleicons' | 'all' | 'local' | 'custom' | string = 'all',
+	// The literal union is kept purely for editor autocomplete. The `(string & {})`
+	// trick prevents TypeScript from widening the union to plain `string` while
+	// still allowing custom icon pack IDs.
+	source: 'lucide' | 'simpleicons' | 'all' | 'local' | 'custom' | (string & {}) = 'all',
 	app?: App
 ): Promise<IconInfo[]> {
 	if (!app) {
@@ -487,88 +490,81 @@ export function applyColorToSvg(svgContent: string, color?: string): string {
 
 
 /**
- * Render an icon as an SVG element (unified rendering for all icon types)
- * Returns a div containing the SVG, styled consistently
+ * Render an icon as an SVG element (unified rendering for all icon types).
+ * Returns a div containing the SVG, styled consistently.
  */
-export function renderIconAsSvg(
+export async function renderIconAsSvg(
 	iconInfo: IconInfo | { name: string; displayName: string; source: 'lucide' | 'local' | 'pack' | 'simpleicons'; path?: string; url?: string },
 	size: number,
 	color?: string,
 	app?: App
 ): Promise<HTMLElement> {
-	return new Promise(async (resolve) => {
-		const container = document.createElement('div');
-		setCssProps(container, {
+	const container = activeDocument.createElement('div');
+	setCssProps(container, {
+		width: `${size}px`,
+		height: `${size}px`,
+		display: 'inline-flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		flexShrink: '0',
+	});
+
+	if (iconInfo.source === 'lucide') {
+		const iconDiv = activeDocument.createElement('div');
+		setCssProps(iconDiv, {
 			width: `${size}px`,
 			height: `${size}px`,
-			display: 'inline-flex',
-			alignItems: 'center',
-			justifyContent: 'center',
-			flexShrink: '0',
 		});
-		
-		if (iconInfo.source === 'lucide') {
-			// Use Obsidian's built-in setIcon for Lucide icons
-			const iconDiv = document.createElement('div');
-			setCssProps(iconDiv, {
-				width: `${size}px`,
-				height: `${size}px`,
+		setIcon(iconDiv, iconInfo.name);
+
+		const svg = iconDiv.querySelector('svg');
+		if (svg) {
+			const finalColor = color || 'currentColor';
+			setCssProps(svg, {
+				color: finalColor,
+				fill: 'none',
+				stroke: finalColor,
 			});
-			setIcon(iconDiv, iconInfo.name);
-			
-			// Apply color to the SVG
-			const svg = iconDiv.querySelector('svg');
-			if (svg) {
-				const finalColor = color || 'currentColor';
-				setCssProps(svg, {
-					color: finalColor,
+			svg.setAttribute('fill', 'none');
+			svg.setAttribute('stroke', finalColor);
+
+			const paths = svg.querySelectorAll('path, line, polyline, circle, rect, ellipse');
+			paths.forEach((path: Element) => {
+				path.setAttribute('fill', 'none');
+				path.setAttribute('stroke', finalColor);
+				setCssProps(path as HTMLElement, {
 					fill: 'none',
 					stroke: finalColor,
 				});
-				svg.setAttribute('fill', 'none');
-				svg.setAttribute('stroke', finalColor);
-				
-				// Apply to all path/line/polyline elements inside
-				const paths = svg.querySelectorAll('path, line, polyline, circle, rect, ellipse');
-				paths.forEach((path: Element) => {
-					path.setAttribute('fill', 'none');
-					path.setAttribute('stroke', finalColor);
-					setCssProps(path as HTMLElement, {
-						fill: 'none',
-						stroke: finalColor,
-					});
-				});
-			}
-			
-			container.appendChild(iconDiv);
-			resolve(container);
-		} else if (iconInfo.path && app) {
-			// Load SVG content from local file (works for all pack icons: Tabler, SimpleIcons, etc.)
-			const svgContent = await loadSvgWithColor(app, iconInfo.path, color);
-			if (svgContent) {
-				container.innerHTML = svgContent;
-				const svg = container.querySelector('svg');
-				if (svg) {
-					setCssProps(svg, {
-						width: `${size}px`,
-						height: `${size}px`,
-						color: color || 'currentColor',
-					});
-					if (!svg.hasAttribute('width')) {
-						svg.setAttribute('width', `${size}`);
-					}
-					if (!svg.hasAttribute('height')) {
-						svg.setAttribute('height', `${size}`);
-					}
-				}
-			} else {
-				// Icon loading failed - container will be empty, but caller should check for content
-				console.debug(`[Iconocolor] Failed to load icon from ${iconInfo.path}`);
-			}
-			resolve(container);
-		} else {
-			// Fallback for other types
-			resolve(container);
+			});
 		}
-	});
+
+		container.appendChild(iconDiv);
+		return container;
+	}
+
+	if (iconInfo.path && app) {
+		const svgContent = await loadSvgWithColor(app, iconInfo.path, color);
+		if (svgContent) {
+			const svg = appendSvgString(container, svgContent);
+			if (svg) {
+				setCssProps(svg, {
+					width: `${size}px`,
+					height: `${size}px`,
+					color: color || 'currentColor',
+				});
+				if (!svg.hasAttribute('width')) {
+					svg.setAttribute('width', `${size}`);
+				}
+				if (!svg.hasAttribute('height')) {
+					svg.setAttribute('height', `${size}`);
+				}
+			}
+		} else {
+			console.debug(`[Iconocolor] Failed to load icon from ${iconInfo.path}`);
+		}
+		return container;
+	}
+
+	return container;
 }

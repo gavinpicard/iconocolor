@@ -3,29 +3,9 @@
  */
 
 import { App, TFile, TFolder, requestUrl } from 'obsidian';
+import * as JSZip from 'jszip';
 import { ensureIconsFolderExists } from './iconDownloader';
 import { clearIconCache } from './iconService';
-
-/**
- * Window interface extended with JSZip (loaded from CDN)
- * JSZip is loaded dynamically, so we define a minimal interface
- */
-interface JSZipFile {
-	dir: boolean;
-	async(type: 'string'): Promise<string>;
-}
-
-interface JSZipInstance {
-	loadAsync(data: ArrayBuffer): Promise<JSZipInstance>;
-	forEach(callback: (relativePath: string, file: JSZipFile) => void): void;
-}
-
-interface WindowWithJSZip extends Window {
-	JSZip?: {
-		new (): JSZipInstance;
-		loadAsync(data: ArrayBuffer): Promise<JSZipInstance>;
-	};
-}
 
 export interface IconPack {
 	id: string;
@@ -364,26 +344,13 @@ export async function downloadIconPack(
 			return { success: false, error: `Failed to download: ${error instanceof Error ? error.message : 'Unknown error'}. Please download manually from: ${pack.downloadUrl}` };
 		}
 		
-		// Use JSZip to extract (we'll load it dynamically)
-		// JSZip is loaded from CDN and added to window object
-		let JSZip = (window as WindowWithJSZip).JSZip;
-		if (!JSZip) {
-			const loadedJSZip = await loadJSZip();
-			if (!loadedJSZip) {
-				return { success: false, error: 'JSZip library not available. Please install icon packs manually.' };
-			}
-			JSZip = loadedJSZip;
-		}
-
 		const zip = await JSZip.loadAsync(arrayBuffer);
 		let downloadedCount = 0;
 
-		// Find and extract all SVG files
 		const svgFiles: Array<{ path: string; content: string }> = [];
-		
-		// Process all files in the zip - collect all SVG files first
-		const fileEntries: Array<{ path: string; file: JSZipFile }> = [];
-		zip.forEach((relativePath: string, file: JSZipFile) => {
+
+		const fileEntries: Array<{ path: string; file: JSZip.JSZipObject }> = [];
+		zip.forEach((relativePath: string, file: JSZip.JSZipObject) => {
 			if (!file.dir && relativePath.endsWith('.svg')) {
 				fileEntries.push({ path: relativePath, file });
 			}
@@ -424,7 +391,7 @@ export async function downloadIconPack(
 			}
 			
 			// Fallback: if path contains the pack name, try to extract relative path
-			const packNamePattern = new RegExp(`.*${packId}[^/]*/(.+\.svg)$`, 'i');
+			const packNamePattern = new RegExp(`.*${packId}[^/]*/(.+\\.svg)$`, 'i');
 			const packMatch = zipPath.match(packNamePattern);
 			if (packMatch) {
 				// Check if it's in an icons/svg/assets folder
@@ -456,9 +423,9 @@ export async function downloadIconPack(
 							return;
 						}
 						
-						// Clean up filename - normalize to lowercase with hyphens
-						// Sanitize path to prevent path traversal
-						const sanitizedPath = iconRelativePath.replace(/\.\./g, '').replace(/[<>:"|?*\x00-\x1f]/g, '');
+						const controlChars = String.fromCharCode(0) + '-' + String.fromCharCode(0x1f);
+						const invalidCharRegex = new RegExp(`[<>:"|?*${controlChars}]`, 'g');
+						const sanitizedPath = iconRelativePath.replace(/\.\./g, '').replace(invalidCharRegex, '');
 						const pathParts = sanitizedPath.split('/').filter(p => p.length > 0);
 						
 						if (pathParts.length === 0) {
@@ -515,31 +482,3 @@ export async function downloadIconPack(
 		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
 	}
 }
-
-/**
- * Load JSZip library dynamically from CDN
- */
-async function loadJSZip(): Promise<NonNullable<WindowWithJSZip['JSZip']> | null> {
-	return new Promise((resolve) => {
-		// Check if already loaded
-		const windowWithJSZip = window as WindowWithJSZip;
-		if (windowWithJSZip.JSZip) {
-			resolve(windowWithJSZip.JSZip);
-			return;
-		}
-
-		// Load from CDN
-		const script = document.createElement('script');
-		script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-		script.onload = () => {
-			resolve(windowWithJSZip.JSZip || null);
-		};
-		script.onerror = () => {
-			console.error('Failed to load JSZip library');
-			resolve(null);
-		};
-		document.head.appendChild(script);
-	});
-}
-
-

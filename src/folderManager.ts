@@ -30,16 +30,13 @@ export class FolderManager {
 	 * Start observing the file explorer for changes
 	 */
 	private startObserving(): void {
-		const fileExplorer = document.querySelector('.nav-files-container');
+		const fileExplorer = activeDocument.querySelector('.nav-files-container');
 		if (!fileExplorer) {
-			// Wait for file explorer to be available
-			setTimeout(() => this.startObserving(), 100);
+			window.setTimeout(() => this.startObserving(), 100);
 			return;
 		}
 
-		// Debounce to avoid excessive updates
-		// Increased delay to give newly created folders time to initialize
-		let timeout: NodeJS.Timeout | null = null;
+		let timeout: number | null = null;
 		let isApplying = false;
 		this.observer = new MutationObserver((mutations) => {
 			// Check if any mutation involves an input field (folder being renamed)
@@ -56,8 +53,7 @@ export class FolderManager {
 				return false;
 			});
 			
-			// If there's an active input in the file explorer, skip updates
-			const fileExplorer = document.querySelector('.nav-files-container');
+			const fileExplorer = activeDocument.querySelector('.nav-files-container');
 			if (fileExplorer) {
 				const activeInput = fileExplorer.querySelector('input:focus, [contenteditable="true"]:focus');
 				if (activeInput) {
@@ -69,13 +65,13 @@ export class FolderManager {
 			if (isApplying) return; // Skip if already applying
 			
 			if (timeout) {
-				clearTimeout(timeout);
+				window.clearTimeout(timeout);
 			}
-			timeout = setTimeout(() => {
+			timeout = window.setTimeout(() => {
 				isApplying = true;
 				this.applyAllStyles();
 				// Reset flag after a short delay
-				setTimeout(() => {
+				window.setTimeout(() => {
 					isApplying = false;
 				}, 50);
 			}, 50); // Reduced from 300ms to 50ms for faster updates
@@ -89,7 +85,7 @@ export class FolderManager {
 		// Also listen for workspace changes
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on('layout-change', () => {
-				setTimeout(() => this.applyAllStyles(), 50);
+				window.setTimeout(() => this.applyAllStyles(), 50);
 			})
 		);
 
@@ -99,7 +95,7 @@ export class FolderManager {
 				// If a folder was created, wait a bit for it to be fully initialized, then apply styles
 				if (file instanceof TFolder) {
 					this.invalidateRootFoldersCache();
-					setTimeout(() => {
+					window.setTimeout(() => {
 						this.applyAllStyles();
 					}, 100);
 				}
@@ -112,7 +108,7 @@ export class FolderManager {
 				// After a folder is renamed, apply styles
 				if (file instanceof TFolder) {
 					this.invalidateRootFoldersCache();
-					setTimeout(() => {
+					window.setTimeout(() => {
 						this.applyAllStyles();
 					}, 50);
 				}
@@ -127,7 +123,7 @@ export class FolderManager {
 			const target = e.target as HTMLElement;
 			if (target && (target.tagName === 'INPUT' || target.hasAttribute('contenteditable'))) {
 				// User finished editing, apply styles after a short delay
-				setTimeout(() => {
+				window.setTimeout(() => {
 					this.applyAllStyles();
 				}, 50);
 			}
@@ -158,18 +154,16 @@ export class FolderManager {
 	 * Check if a folder element is currently being renamed/edited
 	 */
 	private isFolderBeingRenamed(folder: HTMLElement): boolean {
-		// Check if there's an active input field in the folder (indicates renaming)
 		const input = folder.querySelector('input[type="text"]') as HTMLInputElement;
-		if (input && document.activeElement === input) {
+		if (input && activeDocument.activeElement === input) {
 			return true;
 		}
-		
-		// Also check for contenteditable elements that are focused
+
 		const contentEditable = folder.querySelector('[contenteditable="true"]') as HTMLElement;
-		if (contentEditable && document.activeElement === contentEditable) {
+		if (contentEditable && activeDocument.activeElement === contentEditable) {
 			return true;
 		}
-		
+
 		return false;
 	}
 

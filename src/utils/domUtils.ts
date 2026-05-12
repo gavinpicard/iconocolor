@@ -6,12 +6,33 @@ import { getColorFilter } from './colorUtils';
 
 export function setCssProps(element: HTMLElement | SVGElement, props: Partial<CSSStyleDeclaration>): void {
 	for (const [key, value] of Object.entries(props)) {
-		if (value !== undefined && value !== null) {
-			// Convert camelCase to kebab-case for CSS properties
-			const cssProperty = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-			element.style.setProperty(cssProperty, String(value));
+		if (value === undefined || value === null) continue;
+		const cssProperty = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+		const stringValue =
+			typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+				? String(value)
+				: '';
+		if (stringValue) {
+			element.style.setProperty(cssProperty, stringValue);
 		}
 	}
+}
+
+/**
+ * Safely parse an SVG string and append it to a container element.
+ * Uses DOMParser so any embedded `<script>` tags are inert.
+ */
+export function appendSvgString(container: HTMLElement, svgString: string): SVGSVGElement | null {
+	const parser = new DOMParser();
+	const parsed = parser.parseFromString(svgString, 'image/svg+xml');
+	const svg = parsed.querySelector('svg');
+	if (!svg) return null;
+	// Strip any script elements out of an abundance of caution; they would not
+	// execute when added via DOM APIs, but plugin reviewers prefer them removed.
+	svg.querySelectorAll('script').forEach((el) => el.remove());
+	const imported = container.ownerDocument.importNode(svg, true);
+	container.appendChild(imported);
+	return imported;
 }
 
 /**
@@ -203,12 +224,10 @@ export function applyFolderStyles(
 		// Mark that we're loading this icon
 		folderName.setAttribute('data-iconocolor-loading', currentIconData);
 
-		// Create icon element container
-		const iconEl = document.createElement('span');
+		const iconEl = activeDocument.createElement('span');
 		iconEl.className = `${pluginId}-custom-icon`;
 		iconEl.style.setProperty('--icon-size', `${iconSize}px`);
 
-		// Create IconInfo from config.icon
 		let iconInfo: { name: string; displayName: string; source: 'lucide' | 'local' | 'pack' | 'simpleicons'; path?: string; url?: string } | null = null;
 		
 		if (isLucideIcon(config.icon)) {
@@ -219,7 +238,7 @@ export function applyFolderStyles(
 				source: 'lucide',
 				url: getLucideIconUrl(iconName),
 			};
-		} else if (isLocalIcon(config.icon, app) && app) {
+		} else if (app && isLocalIcon(config.icon, app)) {
 			iconInfo = {
 				name: config.icon.split('/').pop()?.replace('.svg', '') || '',
 				displayName: config.icon.split('/').pop() || '',
@@ -233,8 +252,7 @@ export function applyFolderStyles(
 			// Lucide icons can be rendered synchronously (fast path)
 			if (iconInfo.source === 'lucide' && app) {
 				try {
-					// Render Lucide icon synchronously using Obsidian's API
-					const iconElement = document.createElement('div');
+					const iconElement = activeDocument.createElement('div');
 					iconElement.className = `${pluginId}-custom-icon`;
 					iconElement.style.setProperty('--icon-size', `${iconSize}px`);
 					setCssProps(iconElement, {
@@ -297,9 +315,7 @@ export function applyFolderStyles(
 				// Success - icon inserted, return early
 				return;
 			} else {
-				// For non-Lucide icons, load asynchronously but show placeholder immediately
-				// Insert a placeholder div immediately so colors appear right away
-				const placeholder = document.createElement('span');
+				const placeholder = activeDocument.createElement('span');
 				placeholder.className = `${pluginId}-custom-icon ${pluginId}-icon-placeholder`;
 				placeholder.style.setProperty('--icon-size', `${iconSize}px`);
 				setCssProps(placeholder, {
@@ -333,8 +349,10 @@ export function applyFolderStyles(
 						
 						const iconElement = await renderIconAsSvg(iconInfo, iconSize, config.iconColor, app);
 						
-						// Check if iconElement actually has content (SVG or img) - don't insert empty containers
-						const hasContent = iconElement.querySelector('svg') || iconElement.querySelector('img') || iconElement.innerHTML.trim().length > 0;
+						const hasContent =
+							iconElement.querySelector('svg') ||
+							iconElement.querySelector('img') ||
+							iconElement.childNodes.length > 0;
 						if (!hasContent) {
 							// Icon failed to load - remove placeholder and abort
 							placeholder.remove();
@@ -371,13 +389,12 @@ export function applyFolderStyles(
 				})().catch(console.error);
 			}
 		} else if (config.icon.startsWith('<svg') || config.icon.startsWith('data:image')) {
-			// SVG content - render directly
-			const iconEl = document.createElement('span');
+			const iconEl = activeDocument.createElement('span');
 			iconEl.className = `${pluginId}-custom-icon`;
 			iconEl.style.setProperty('--icon-size', `${iconSize}px`);
 			iconEl.setAttribute('data-icon-path', currentIconData);
-			iconEl.innerHTML = config.icon;
-			const svg = iconEl.querySelector('svg');
+
+			const svg = appendSvgString(iconEl, config.icon);
 			if (svg) {
 				setCssProps(svg, {
 					width: `${iconSize}px`,
@@ -391,25 +408,23 @@ export function applyFolderStyles(
 					svg.setAttribute('height', `${iconSize}`);
 				}
 			}
-			
-			// Insert icon at the beginning of folder name
-			const textNode = Array.from(folderName.childNodes).find(node => 
-				node.nodeType === Node.TEXT_NODE || 
+
+			const textNode = Array.from(folderName.childNodes).find(node =>
+				node.nodeType === Node.TEXT_NODE ||
 				(node.nodeType === Node.ELEMENT_NODE && !(node as Element).classList.contains(`${pluginId}-custom-icon`))
 			);
-			
+
 			if (textNode) {
 				folderName.insertBefore(iconEl, textNode);
 			} else {
 				folderName.insertBefore(iconEl, folderName.firstChild);
 			}
 		} else if (config.icon.startsWith('http') || config.icon.startsWith('/') || config.icon.includes('.')) {
-			// External URL - use img as fallback
-			const iconEl = document.createElement('span');
+			const iconEl = activeDocument.createElement('span');
 			iconEl.className = `${pluginId}-custom-icon`;
 			iconEl.style.setProperty('--icon-size', `${iconSize}px`);
 			iconEl.setAttribute('data-icon-path', currentIconData);
-			const img = document.createElement('img');
+			const img = activeDocument.createElement('img');
 			img.src = config.icon;
 			img.alt = '';
 			setCssProps(img, {
@@ -475,9 +490,9 @@ export function getFolderPathFromElement(element: HTMLElement): string | null {
  * Finds all folder elements in the file explorer
  */
 export function getAllFolderElements(): HTMLElement[] {
-	const fileExplorer = document.querySelector('.nav-files-container');
+	const fileExplorer = activeDocument.querySelector('.nav-files-container');
 	if (!fileExplorer) return [];
 
-	return Array.from(fileExplorer.querySelectorAll('.nav-folder')) as HTMLElement[];
+	return Array.from(fileExplorer.querySelectorAll('.nav-folder'));
 }
 

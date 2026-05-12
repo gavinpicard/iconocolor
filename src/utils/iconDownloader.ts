@@ -27,11 +27,12 @@ function isValidUrl(urlString: string): boolean {
  * Sanitize file name to prevent path traversal and invalid characters
  */
 function sanitizeFileName(fileName: string): string {
-	// Remove path traversal attempts
 	let sanitized = fileName.replace(/\.\./g, '').replace(/\//g, '').replace(/\\/g, '');
-	// Remove invalid filename characters
-	sanitized = sanitized.replace(/[<>:"|?*\x00-\x1f]/g, '');
-	// Limit length
+	// Strip filesystem-invalid characters, including ASCII control characters (0x00-0x1F)
+	// which are not legal in file names on Windows and can produce confusing names elsewhere.
+	const controlChars = String.fromCharCode(0) + '-' + String.fromCharCode(0x1f);
+	const invalidCharRegex = new RegExp(`[<>:"|?*${controlChars}]`, 'g');
+	sanitized = sanitized.replace(invalidCharRegex, '');
 	if (sanitized.length > 100) {
 		sanitized = sanitized.substring(0, 100);
 	}
@@ -84,9 +85,8 @@ export async function ensureIconsFolderExists(app: App): Promise<TFolder | null>
 		// If the error is that the folder already exists, that's fine
 		const errorMessage = createError instanceof Error ? createError.message : String(createError);
 		if (errorMessage.includes('already exists') || errorMessage.includes('Folder already exists')) {
-			// Folder exists, just find it - try a few times with small delays for cache
 			for (let i = 0; i < 5; i++) {
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise(resolve => window.setTimeout(resolve, 100));
 				iconsFolder = findIconsFolder();
 				if (iconsFolder) {
 					return iconsFolder;
@@ -141,10 +141,9 @@ export async function downloadSimpleIcon(
 		}
 
 		const svgContent = response.text || '';
-		
-		// Save to .obsidian/icons/{iconName}.svg
+
 		const fileName = `${iconName.toLowerCase()}.svg`;
-		const filePath = `.obsidian/icons/${fileName}`;
+		const filePath = `${app.vault.configDir}/icons/${fileName}`;
 		
 		// Check if file already exists
 		const existingFile = app.vault.getAbstractFileByPath(filePath);
@@ -191,13 +190,12 @@ export async function downloadIconFromUrl(
 		}
 
 		const content = response.text || '';
-		
-		// Ensure fileName has .svg extension
+
 		if (!fileName.endsWith('.svg')) {
 			fileName = `${fileName}.svg`;
 		}
-		
-		const filePath = `.obsidian/icons/${fileName}`;
+
+		const filePath = `${app.vault.configDir}/icons/${fileName}`;
 		
 		// Check if file already exists
 		const existingFile = app.vault.getAbstractFileByPath(filePath);
@@ -217,15 +215,9 @@ export async function downloadIconFromUrl(
 }
 
 /**
- * Check if an icon path is a local icon (in .obsidian/icons)
+ * Check if an icon path is a local icon stored in the vault's icons folder.
  */
-export function isLocalIcon(path: string, app?: App): boolean {
-	if (!app) {
-		// Fallback: check for common config path (default is .obsidian)
-		// This is acceptable as a fallback when app is not available
-		// eslint-disable-next-line obsidianmd/hardcoded-config-path
-		return path.startsWith('.obsidian/icons/') || path.startsWith('/.obsidian/icons/');
-	}
+export function isLocalIcon(path: string, app: App): boolean {
 	const configDir = app.vault.configDir;
 	return path.startsWith(`${configDir}/icons/`) || path.startsWith(`/${configDir}/icons/`);
 }

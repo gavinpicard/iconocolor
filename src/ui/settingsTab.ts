@@ -324,7 +324,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					.setButtonText('Delete')
 					.setWarning()
 					.onClick(async () => {
-							this.plugin.settings.defaultIconRules!.splice(index, 1);
+							this.plugin.settings.defaultIconRules.splice(index, 1);
 							await this.plugin.saveSettings();
 							await this.plugin.folderManager.updateSettings(this.plugin.settings);
 							this.displayWithScrollPreservation();
@@ -385,16 +385,18 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					button
 						.setButtonText('Edit')
 						.onClick(() => {
-							this.editFolderConfig(folderPath, config);
+							void this.editFolderConfig(folderPath, config);
 						});
 				});
 
 				folderSetting.addButton((button) => {
 					button
 						.setButtonText('Remove')
-						.onClick(async () => {
-							await this.plugin.folderManager.removeFolderConfig(folderPath);
-							this.displayWithScrollPreservation();
+						.onClick(() => {
+							void (async () => {
+								await this.plugin.folderManager.removeFolderConfig(folderPath);
+								this.displayWithScrollPreservation();
+							})();
 						});
 				});
 			}
@@ -410,7 +412,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		// Restore scroll position after rendering
 		if (savedScrollPosition > 0) {
 			// Use requestAnimationFrame to ensure DOM is fully rendered
-			requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => {
 				const currentSettingsContainer = containerEl.closest('.vertical-tab-content') as HTMLElement;
 				if (currentSettingsContainer) {
 					currentSettingsContainer.scrollTop = savedScrollPosition;
@@ -462,7 +464,11 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						.setButtonText('Delete')
 						.setWarning()
 						.onClick(async () => {
-							const confirmed = confirm(`Are you sure you want to delete "${pack.name}"? This will remove all ${pack.iconCount || 0} icons from this pack.`);
+							const confirmed = await new ConfirmModal(
+								this.app,
+								`Are you sure you want to delete "${pack.name}"? This will remove all ${pack.iconCount || 0} icons from this pack.`,
+								'Delete',
+							).openAndWait();
 							if (!confirmed) return;
 
 							button.setButtonText('Deleting...');
@@ -508,12 +514,12 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		return parts.length > 0 ? parts.join(', ') : 'No configuration';
 	}
 
-	private async editFolderConfig(folderPath: string, currentConfig: FolderConfig): Promise<void> {
+	private editFolderConfig(folderPath: string, currentConfig: FolderConfig): void {
 		new FolderConfigModal(
 			this.app,
 			currentConfig,
 			this.plugin.settings,
-			async (result) => {
+			(result) => {
 				const config: FolderConfig = {
 					...(result.icon !== undefined && { icon: result.icon }),
 					...(result.baseColor !== undefined && { baseColor: result.baseColor }),
@@ -523,8 +529,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					...(result.applyToSubfolders !== undefined && { applyToSubfolders: result.applyToSubfolders }),
 					...(result.inheritBaseColor !== undefined && { inheritBaseColor: result.inheritBaseColor }),
 				};
-				
-				// Explicitly delete properties that existed in original but are now undefined
+
 				const configWithDeletions = config as FolderConfigWithDeletions;
 				if (currentConfig.baseColor !== undefined && result.baseColor === undefined) {
 					configWithDeletions.__deleteBaseColor = true;
@@ -539,8 +544,10 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					configWithDeletions.__deleteTextColor = true;
 				}
 
-				await this.plugin.folderManager.setFolderConfig(folderPath, config);
-				this.displayWithScrollPreservation(); // Refresh
+				void (async () => {
+					await this.plugin.folderManager.setFolderConfig(folderPath, config);
+					this.displayWithScrollPreservation();
+				})();
 			},
 			folderPath
 		).open();
@@ -652,11 +659,13 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		new PaletteEditorModal(
 			this.app,
 			palette,
-			async (editedPalette) => {
-				this.plugin.settings.colorPalettes[index] = editedPalette;
-				await this.plugin.saveSettings();
-				await this.plugin.folderManager.updateSettings(this.plugin.settings);
-				this.displayWithScrollPreservation();
+			(editedPalette) => {
+				void (async () => {
+					this.plugin.settings.colorPalettes[index] = editedPalette;
+					await this.plugin.saveSettings();
+					await this.plugin.folderManager.updateSettings(this.plugin.settings);
+					this.displayWithScrollPreservation();
+				})();
 			}
 		).open();
 	}
@@ -717,7 +726,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				// Type
 				new Setting(contentEl)
 					.setName('Type')
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
+					 
 					.setDesc('Type of item to match: base (files), markdown (markdown files), or folder')
 					.addDropdown(dropdown => {
 						dropdown
@@ -803,13 +812,15 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		new DefaultIconRuleModal(
 			this.app,
 			rule,
-			async (editedRule) => {
-						this.plugin.settings.defaultIconRules![index] = editedRule;
-						await this.plugin.saveSettings();
-						await this.plugin.folderManager.updateSettings(this.plugin.settings);
-						this.displayWithScrollPreservation();
-					}
-				).open();
+			(editedRule) => {
+				void (async () => {
+					this.plugin.settings.defaultIconRules[index] = editedRule;
+					await this.plugin.saveSettings();
+					await this.plugin.folderManager.updateSettings(this.plugin.settings);
+					this.displayWithScrollPreservation();
+				})();
+			}
+		).open();
 	}
 
 	/**
@@ -1144,7 +1155,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (same as base)')
 					.addOption('lightness', 'Lightness adjustment')
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
+					 
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type);
 				dropdown.onChange(async (value) => {
@@ -1267,7 +1278,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				dropdown
 					.addOption('none', 'None (no inheritance)')
 					.addOption('lightness', 'Lightness adjustment')
-					// eslint-disable-next-line obsidianmd/ui/sentence-case
+					 
 					.addOption('hsl', 'HSL transformation');
 				dropdown.setValue(current.type || 'lightness');
 				dropdown.onChange(async (value) => {
@@ -1513,19 +1524,7 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			this.plugin.settings.profiles = [];
 		}
 
-		// Helper function for deep cloning (only when needed)
-		const deepClone = <T>(obj: T): T => {
-			if (obj === null || typeof obj !== 'object') return obj;
-			if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
-			if (obj instanceof Array) return obj.map(item => deepClone(item)) as unknown as T;
-			const cloned = {} as T;
-			for (const key in obj) {
-				if (Object.prototype.hasOwnProperty.call(obj, key)) {
-					cloned[key] = deepClone(obj[key]);
-				}
-			}
-			return cloned;
-		};
+		const deepClone = <T>(value: T): T => structuredClone(value);
 
 		const profile: SettingsProfile = {
 			id: `profile-${Date.now()}`,
@@ -1557,22 +1556,8 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		// Helper function for deep cloning (only when needed)
-		const deepClone = <T>(obj: T): T => {
-			if (obj === null || typeof obj !== 'object') return obj;
-			if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
-			if (obj instanceof Array) return obj.map(item => deepClone(item)) as unknown as T;
-			const cloned = {} as T;
-			for (const key in obj) {
-				if (Object.prototype.hasOwnProperty.call(obj, key)) {
-					cloned[key] = deepClone(obj[key]);
-				}
-			}
-			return cloned;
-		};
+		const deepClone = <T>(value: T): T => structuredClone(value);
 
-		// Apply profile settings
-		// Note: colorPalettes are NOT loaded from profiles - they remain global
 		if (profile.iconSize !== undefined) this.plugin.settings.iconSize = profile.iconSize;
 		if (profile.activePaletteIndex !== undefined) this.plugin.settings.activePaletteIndex = profile.activePaletteIndex;
 		if (profile.autoColorEnabled !== undefined) this.plugin.settings.autoColorEnabled = profile.autoColorEnabled;
@@ -1608,6 +1593,63 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		await this.plugin.saveSettings();
 		new Notice(`Profile "${profile.name}" deleted`);
 		this.displayWithScrollPreservation();
+	}
+}
+
+/**
+ * Simple confirmation modal that resolves to true/false when the user
+ * chooses an action. Replaces window.confirm() which is forbidden by the
+ * Obsidian plugin review guidelines.
+ */
+class ConfirmModal extends Modal {
+	private message: string;
+	private confirmText: string;
+	private resolveFn: ((value: boolean) => void) | null = null;
+	private decided = false;
+
+	constructor(app: App, message: string, confirmText = 'Confirm') {
+		super(app);
+		this.message = message;
+		this.confirmText = confirmText;
+	}
+
+	openAndWait(): Promise<boolean> {
+		return new Promise((resolve) => {
+			this.resolveFn = resolve;
+			this.open();
+		});
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.createEl('p', { text: this.message });
+
+		new Setting(contentEl)
+			.addButton((button) =>
+				button.setButtonText('Cancel').onClick(() => {
+					this.decided = true;
+					this.resolveFn?.(false);
+					this.close();
+				}),
+			)
+			.addButton((button) =>
+				button
+					.setButtonText(this.confirmText)
+					.setWarning()
+					.onClick(() => {
+						this.decided = true;
+						this.resolveFn?.(true);
+						this.close();
+					}),
+			);
+	}
+
+	onClose(): void {
+		if (!this.decided) {
+			this.resolveFn?.(false);
+		}
+		this.contentEl.empty();
 	}
 }
 

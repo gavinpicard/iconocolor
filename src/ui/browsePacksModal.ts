@@ -136,11 +136,10 @@ export class BrowsePacksModal extends Modal {
 							this.downloadingPacks.delete(pack.id);
 							
 							// Small delay to ensure vault cache is updated
-							await new Promise(resolve => setTimeout(resolve, 100));
+							await new Promise(resolve => window.setTimeout(resolve, 100));
 							
-							// Force refresh vault cache by accessing the folder
 							try {
-								const packPath = `.obsidian/icons/${pack.id}`;
+								const packPath = `${this.app.vault.configDir}/icons/${pack.id}`;
 								await this.app.vault.adapter.exists(packPath);
 								// Trigger a refresh by accessing the folder
 								const packFolder = this.app.vault.getAbstractFileByPath(packPath);

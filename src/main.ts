@@ -5,6 +5,17 @@ import { FolderManager } from './folderManager';
 import { IconocolorSettingTab } from './ui/settingsTab';
 import { FolderConfigModal } from './ui/folderConfigModal';
 
+// Minimal shape of Obsidian's undocumented `app.setting` object; only the
+// fields we use are declared so we get type safety without depending on
+// internals beyond what's needed.
+interface SettingApi {
+	open(): void;
+	openTabById(id: string): void;
+}
+interface AppWithSetting extends App {
+	setting: SettingApi;
+}
+
 export default class IconocolorPlugin extends Plugin {
 	settings: IconocolorSettings;
 	folderManager: FolderManager;
@@ -55,15 +66,13 @@ export default class IconocolorPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new IconocolorSettingTab(this.app, this));
 
-		// Add command to open settings
 		this.addCommand({
 			id: 'open-settings',
 			name: 'Open settings',
 			callback: () => {
-				// @ts-expect-error - setting API may vary
-				this.app.setting.open();
-				// @ts-expect-error - setting API may vary
-				this.app.setting.openTabById(this.manifest.id);
+				const appWithSetting = this.app as AppWithSetting;
+				appWithSetting.setting.open();
+				appWithSetting.setting.openTabById(this.manifest.id);
 			},
 		});
 
@@ -97,19 +106,9 @@ export default class IconocolorPlugin extends Plugin {
 			return;
 		}
 
-		// Helper function for deep cloning
-		const deepClone = <T>(obj: T): T => {
-			if (obj === null || typeof obj !== 'object') return obj;
-			if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
-			if (obj instanceof Array) return obj.map(item => deepClone(item)) as unknown as T;
-			const cloned = {} as T;
-			for (const key in obj) {
-				if (Object.prototype.hasOwnProperty.call(obj, key)) {
-					cloned[key] = deepClone(obj[key]);
-				}
-			}
-			return cloned;
-		};
+		// Use the platform's structured clone (available in Obsidian's Electron
+		// runtime and all supported mobile browsers) to deep clone profile data.
+		const deepClone = <T>(value: T): T => structuredClone(value);
 
 		// Apply profile settings
 		// Note: colorPalettes are NOT loaded from profiles - they remain global
@@ -137,8 +136,8 @@ export default class IconocolorPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		const loadedData = await this.loadData();
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+		const loadedData = (await this.loadData()) as Partial<IconocolorSettings> | null;
+		this.settings = { ...DEFAULT_SETTINGS, ...(loadedData ?? {}) };
 		
 		// Migration: ensure iconSize exists for existing users
 		if (this.settings.iconSize === undefined) {
@@ -278,12 +277,10 @@ export default class IconocolorPlugin extends Plugin {
 			this.app,
 			currentConfig,
 			this.settings,
-			async (result) => {
-				// Build config with explicitly set values and track deletions
+			(result) => {
 				const config: FolderConfig = {};
 				const originalConfig = currentConfig || {};
-				
-				// Include properties that are explicitly set (not undefined)
+
 				if (result.icon !== undefined) config.icon = result.icon;
 				if (result.baseColor !== undefined) config.baseColor = result.baseColor;
 				if (result.iconColor !== undefined) config.iconColor = result.iconColor;
@@ -291,9 +288,7 @@ export default class IconocolorPlugin extends Plugin {
 				if (result.textColor !== undefined) config.textColor = result.textColor;
 				if (result.applyToSubfolders !== undefined) config.applyToSubfolders = result.applyToSubfolders;
 				if (result.inheritBaseColor !== undefined) config.inheritBaseColor = result.inheritBaseColor;
-				
-				// Explicitly delete properties that existed in original but are now undefined
-				// This handles the case where user reverts a color - we need to delete it
+
 				const configWithDeletions = config as FolderConfigWithDeletions;
 				if (originalConfig.baseColor !== undefined && result.baseColor === undefined) {
 					configWithDeletions.__deleteBaseColor = true;
@@ -308,7 +303,7 @@ export default class IconocolorPlugin extends Plugin {
 					configWithDeletions.__deleteTextColor = true;
 				}
 
-				await this.folderManager.setFolderConfig(folderPath, config);
+				void this.folderManager.setFolderConfig(folderPath, config);
 			},
 			folderPath
 		).open();
