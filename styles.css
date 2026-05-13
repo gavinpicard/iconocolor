@@ -100,6 +100,18 @@
 	display: block;
 }
 
+/*
+ * The default-icon rules list and installed-packs list are rendered into
+ * a sub-div inside a SettingGroup so we can call `empty()` on them when
+ * re-rendering. `display: contents` keeps those wrappers transparent to
+ * layout/styling, so the inner `.setting-item` children look identical
+ * to direct SettingGroup children.
+ */
+.iconocolor-rules-list,
+.iconocolor-packs-list {
+	display: contents;
+}
+
 /* Icon picker preview */
 .icon-picker-preview {
 	margin: 16px 0;

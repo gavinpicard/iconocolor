@@ -1,4 +1,4 @@
-import { App, Modal, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, Modal, PluginSettingTab, Setting, SettingGroup, Notice } from 'obsidian';
 import { IconocolorPlugin } from '../main';
 import { FolderConfig, ColorPalette, DefaultIconRule, ColorTransformation, SettingsProfile, FolderConfigWithDeletions } from '../types';
 import { FolderConfigModal } from './folderConfigModal';
@@ -40,167 +40,158 @@ export class IconocolorSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// General settings
-		new Setting(containerEl)
-			.setHeading()
-			.setName('General');
+		const generalGroup = new SettingGroup(containerEl).setHeading('General');
 
-		const iconSizeSetting = new Setting(containerEl)
-			.setName('Icon size')
-			.setDesc('Global size for all folder icons in pixels');
-		
-		let iconSizeTextInput: HTMLInputElement | null = null;
-		let iconSizeSlider: HTMLInputElement | null = null;
-		
-		iconSizeSetting.addSlider(slider => {
-			slider
-				.setLimits(12, 32, 1)
-				.setValue(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16)
-				.setDynamicTooltip()
-				.onChange(async (value) => {
-					this.plugin.settings.iconSize = value;
-					// Update text input to match slider
-					if (iconSizeTextInput) {
-						iconSizeTextInput.value = String(value);
-					}
-					await this.plugin.saveSettings();
-					this.plugin.folderManager.applyAllStyles();
-				});
-			// Store reference to slider element
-			iconSizeSlider = slider.sliderEl;
-		});
-		
-		iconSizeSetting.addText(text => {
-			text
-				.setValue(String(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16))
-				.setPlaceholder('16')
-				.onChange(async (value) => {
-					const numValue = parseInt(value, 10);
-					if (!isNaN(numValue) && numValue >= 12 && numValue <= 32) {
-						this.plugin.settings.iconSize = numValue;
-						// Update slider to match text input
-						if (iconSizeSlider) {
-							iconSizeSlider.value = String(numValue);
+		generalGroup.addSetting(setting => {
+			setting
+				.setName('Icon size')
+				.setDesc('Global size for all folder icons in pixels');
+
+			let iconSizeTextInput: HTMLInputElement | null = null;
+			let iconSizeSlider: HTMLInputElement | null = null;
+
+			setting.addSlider(slider => {
+				slider
+					.setLimits(12, 32, 1)
+					.setValue(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.iconSize = value;
+						if (iconSizeTextInput) {
+							iconSizeTextInput.value = String(value);
 						}
 						await this.plugin.saveSettings();
 						this.plugin.folderManager.applyAllStyles();
-					}
-				});
-			// Store reference to text input element
-			iconSizeTextInput = text.inputEl;
+					});
+				iconSizeSlider = slider.sliderEl;
+			});
+
+			setting.addText(text => {
+				text
+					.setValue(String(this.plugin.settings.iconSize !== undefined ? this.plugin.settings.iconSize : 16))
+					.setPlaceholder('16')
+					.onChange(async (value) => {
+						const numValue = parseInt(value, 10);
+						if (!isNaN(numValue) && numValue >= 12 && numValue <= 32) {
+							this.plugin.settings.iconSize = numValue;
+							if (iconSizeSlider) {
+								iconSizeSlider.value = String(numValue);
+							}
+							await this.plugin.saveSettings();
+							this.plugin.folderManager.applyAllStyles();
+						}
+					});
+				iconSizeTextInput = text.inputEl;
+			});
 		});
 
-		const opacitySetting = new Setting(containerEl)
-			.setName('Folder background opacity')
-			.setDesc('Global opacity for folder background colors (0-100%). Only applies if a folder has a background color set.');
-		
-		let opacityTextInput: HTMLInputElement | null = null;
-		let opacitySlider: HTMLInputElement | null = null;
-		
-		opacitySetting.addSlider(slider => {
-			slider
-				.setLimits(0, 100, 1)
-				.setValue(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100)
-				.setDynamicTooltip()
-				.onChange(async (value) => {
-					this.plugin.settings.folderColorOpacity = value;
-					// Update text input to match slider
-					if (opacityTextInput) {
-						opacityTextInput.value = String(value);
-					}
-					await this.plugin.saveSettings();
-					this.plugin.folderManager.applyAllStyles();
-				});
-			// Store reference to slider element
-			opacitySlider = slider.sliderEl;
-		});
-		
-		opacitySetting.addText(text => {
-			text
-				.setValue(String(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100))
-				.setPlaceholder('100')
-				.onChange(async (value) => {
-					const numValue = parseInt(value, 10);
-					if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-						this.plugin.settings.folderColorOpacity = numValue;
-						// Update slider to match text input
-						if (opacitySlider) {
-							opacitySlider.value = String(numValue);
+		generalGroup.addSetting(setting => {
+			setting
+				.setName('Folder background opacity')
+				.setDesc('Global opacity for folder background colors (0-100%). Only applies if a folder has a background color set.');
+
+			let opacityTextInput: HTMLInputElement | null = null;
+			let opacitySlider: HTMLInputElement | null = null;
+
+			setting.addSlider(slider => {
+				slider
+					.setLimits(0, 100, 1)
+					.setValue(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.folderColorOpacity = value;
+						if (opacityTextInput) {
+							opacityTextInput.value = String(value);
 						}
 						await this.plugin.saveSettings();
 						this.plugin.folderManager.applyAllStyles();
-					}
-				});
-			// Store reference to text input element
-			opacityTextInput = text.inputEl;
+					});
+				opacitySlider = slider.sliderEl;
+			});
+
+			setting.addText(text => {
+				text
+					.setValue(String(this.plugin.settings.folderColorOpacity !== undefined ? this.plugin.settings.folderColorOpacity : 100))
+					.setPlaceholder('100')
+					.onChange(async (value) => {
+						const numValue = parseInt(value, 10);
+						if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+							this.plugin.settings.folderColorOpacity = numValue;
+							if (opacitySlider) {
+								opacitySlider.value = String(numValue);
+							}
+							await this.plugin.saveSettings();
+							this.plugin.folderManager.applyAllStyles();
+						}
+					});
+				opacityTextInput = text.inputEl;
+			});
 		});
 
 		// Color Palettes section (moved up - foundation for colors)
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Color palettes');
-		
-		new Setting(containerEl)
-			.setName('Active palette')
-			.setDesc('Select which palette to use for quick selection and auto-coloring')
-			.addDropdown(dropdown => {
-				this.plugin.settings.colorPalettes.forEach((palette, index) => {
-					dropdown.addOption(String(index), palette.name);
-				});
-				dropdown.setValue(String(this.plugin.settings.activePaletteIndex || 0));
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.activePaletteIndex = parseInt(value, 10);
-					await this.plugin.saveSettings();
-					await this.plugin.folderManager.updateSettings(this.plugin.settings);
-					this.displayWithScrollPreservation();
-				});
-			});
+		const palettesGroup = new SettingGroup(containerEl).setHeading('Color palettes');
 
-		// Palette list
-		this.plugin.settings.colorPalettes.forEach((palette, index) => {
-			const paletteSetting = new Setting(containerEl)
-				.setName(palette.name)
-				.setDesc(`${palette.colors.length} colors`);
-
-			// Color swatches
-			const colorContainer = paletteSetting.controlEl.createDiv();
-			colorContainer.addClass('palette-colors');
-			palette.colors.forEach(color => {
-				const swatch = colorContainer.createDiv();
-				swatch.addClass('color-swatch');
-				swatch.style.setProperty('--iconocolor-swatch-color', color);
-				swatch.title = color;
-			});
-
-			// Edit button
-			paletteSetting.addButton(button => {
-				button
-					.setButtonText('Edit')
-					.onClick(() => {
-						this.editPalette(index);
+		palettesGroup.addSetting(setting => {
+			setting
+				.setName('Active palette')
+				.setDesc('Select which palette to use for quick selection and auto-coloring')
+				.addDropdown(dropdown => {
+					this.plugin.settings.colorPalettes.forEach((palette, index) => {
+						dropdown.addOption(String(index), palette.name);
 					});
-			});
-
-			// Delete button (if not the only palette)
-			if (this.plugin.settings.colorPalettes.length > 1) {
-				paletteSetting.addButton(button => {
-					button
-						.setButtonText('Delete')
-						.onClick(async () => {
-							this.plugin.settings.colorPalettes.splice(index, 1);
-							if (this.plugin.settings.activePaletteIndex >= this.plugin.settings.colorPalettes.length) {
-								this.plugin.settings.activePaletteIndex = 0;
-							}
-							await this.plugin.saveSettings();
-							await this.plugin.folderManager.updateSettings(this.plugin.settings);
-							this.displayWithScrollPreservation();
-						});
+					dropdown.setValue(String(this.plugin.settings.activePaletteIndex || 0));
+					dropdown.onChange(async (value) => {
+						this.plugin.settings.activePaletteIndex = parseInt(value, 10);
+						await this.plugin.saveSettings();
+						await this.plugin.folderManager.updateSettings(this.plugin.settings);
+						this.displayWithScrollPreservation();
+					});
 				});
-			}
 		});
 
-		// Add new palette button
-		new Setting(containerEl)
-			.addButton(button => {
+		this.plugin.settings.colorPalettes.forEach((palette, index) => {
+			palettesGroup.addSetting(paletteSetting => {
+				paletteSetting
+					.setName(palette.name)
+					.setDesc(`${palette.colors.length} colors`);
+
+				const colorContainer = paletteSetting.controlEl.createDiv();
+				colorContainer.addClass('palette-colors');
+				palette.colors.forEach(color => {
+					const swatch = colorContainer.createDiv();
+					swatch.addClass('color-swatch');
+					swatch.style.setProperty('--iconocolor-swatch-color', color);
+					swatch.title = color;
+				});
+
+				paletteSetting.addButton(button => {
+					button
+						.setButtonText('Edit')
+						.onClick(() => {
+							this.editPalette(index);
+						});
+				});
+
+				if (this.plugin.settings.colorPalettes.length > 1) {
+					paletteSetting.addButton(button => {
+						button
+							.setButtonText('Delete')
+							.onClick(async () => {
+								this.plugin.settings.colorPalettes.splice(index, 1);
+								if (this.plugin.settings.activePaletteIndex >= this.plugin.settings.colorPalettes.length) {
+									this.plugin.settings.activePaletteIndex = 0;
+								}
+								await this.plugin.saveSettings();
+								await this.plugin.folderManager.updateSettings(this.plugin.settings);
+								this.displayWithScrollPreservation();
+							});
+					});
+				}
+			});
+		});
+
+		palettesGroup.addSetting(setting => {
+			setting.addButton(button => {
 				button
 					.setButtonText('Add palette')
 					.setCta()
@@ -208,102 +199,90 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						await this.addPalette();
 					});
 			});
+		});
 
 		// Automatic base color assignment (uses palettes, so comes after)
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Automatic base color');
+		const autoColorGroup = new SettingGroup(containerEl).setHeading('Automatic base color');
 
-		new Setting(containerEl)
-			.setName('Enable automatic base color')
-			.setDesc('Automatically assign base colors to root-level folders from the active palette')
-			.addToggle(toggle => {
-				toggle
-					.setValue(this.plugin.settings.autoColorEnabled || false)
-					.onChange(async (value) => {
-						this.plugin.settings.autoColorEnabled = value;
-						await this.plugin.saveSettings();
-						await this.plugin.folderManager.updateSettings(this.plugin.settings);
-						this.displayWithScrollPreservation();
-					});
-			});
+		autoColorGroup.addSetting(setting => {
+			setting
+				.setName('Enable automatic base color')
+				.setDesc('Automatically assign base colors to root-level folders from the active palette')
+				.addToggle(toggle => {
+					toggle
+						.setValue(this.plugin.settings.autoColorEnabled || false)
+						.onChange(async (value) => {
+							this.plugin.settings.autoColorEnabled = value;
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.displayWithScrollPreservation();
+						});
+				});
+		});
 
 		if (this.plugin.settings.autoColorEnabled) {
-			new Setting(containerEl)
-				.setName('Color mode')
-				.setDesc('How to apply colors: gradient creates smooth transitions, repeat cycles through palette')
-				.addDropdown(dropdown => {
-					dropdown.addOption('gradient', 'Gradient');
-					dropdown.addOption('repeat', 'Repeat');
-					dropdown.setValue(this.plugin.settings.autoColorMode || 'gradient');
-					dropdown.onChange(async (value) => {
-						this.plugin.settings.autoColorMode = value as 'gradient' | 'repeat';
-						await this.plugin.saveSettings();
-						await this.plugin.folderManager.updateSettings(this.plugin.settings);
-						this.displayWithScrollPreservation();
+			autoColorGroup.addSetting(setting => {
+				setting
+					.setName('Color mode')
+					.setDesc('How to apply colors: gradient creates smooth transitions, repeat cycles through palette')
+					.addDropdown(dropdown => {
+						dropdown.addOption('gradient', 'Gradient');
+						dropdown.addOption('repeat', 'Repeat');
+						dropdown.setValue(this.plugin.settings.autoColorMode || 'gradient');
+						dropdown.onChange(async (value) => {
+							this.plugin.settings.autoColorMode = value as 'gradient' | 'repeat';
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.displayWithScrollPreservation();
+						});
 					});
-				});
+			});
 		}
 
 		// Global transformations section (how colors are derived from base)
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Color transformations');
+		const transformsGroup = new SettingGroup(containerEl).setHeading('Color transformations');
 
-
-		// Add preview for base transformations
-		this.addBaseTransformationPreview(containerEl);
-		
-		// Icon color transformation
-		this.addTransformationSetting(containerEl, 'Icon color', 'iconColorTransformation');
-		
-		// Folder color transformation
-		this.addTransformationSetting(containerEl, 'Background color', 'folderColorTransformation');
-		
-		// Text color transformation
-		this.addTransformationSetting(containerEl, 'Text color', 'textColorTransformation');
+		this.addBaseTransformationPreview(transformsGroup);
+		this.addTransformationSetting(transformsGroup, 'Icon color', 'iconColorTransformation');
+		this.addTransformationSetting(transformsGroup, 'Background color', 'folderColorTransformation');
+		this.addTransformationSetting(transformsGroup, 'Text color', 'textColorTransformation');
 
 		// Child base transformation section (how children inherit)
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Child base transformation');
+		const childTransformGroup = new SettingGroup(containerEl).setHeading('Child base transformation');
 
-		// Add preview for child base transformations
-		this.addChildBaseTransformationPreview(containerEl);
-		
-		this.addChildBaseTransformationSettings(containerEl);
+		this.addChildBaseTransformationPreview(childTransformGroup);
+		this.addChildBaseTransformationSettings(childTransformGroup);
 
 		// Default Icons section
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Default icons');
+		const defaultIconsGroup = new SettingGroup(containerEl).setHeading('Default icons');
 
-		new Setting(containerEl)
-			.setName('Enable default icons')
-			.setDesc('Automatically apply icons to files and folders based on regex patterns')
-			.addToggle(toggle => {
-				toggle
-					.setValue(this.plugin.settings.defaultIconRules?.length > 0 ? true : false)
-					.onChange(async (value) => {
-						if (!value && this.plugin.settings.defaultIconRules) {
-							// Disable all rules
-							this.plugin.settings.defaultIconRules.forEach(rule => rule.enabled = false);
-						}
-						await this.plugin.saveSettings();
-						await this.plugin.folderManager.updateSettings(this.plugin.settings);
-						this.displayWithScrollPreservation();
-					});
-			});
+		defaultIconsGroup.addSetting(setting => {
+			setting
+				.setName('Enable default icons')
+				.setDesc('Automatically apply icons to files and folders based on regex patterns')
+				.addToggle(toggle => {
+					toggle
+						.setValue(this.plugin.settings.defaultIconRules?.length > 0 ? true : false)
+						.onChange(async (value) => {
+							if (!value && this.plugin.settings.defaultIconRules) {
+								this.plugin.settings.defaultIconRules.forEach(rule => rule.enabled = false);
+							}
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.displayWithScrollPreservation();
+						});
+				});
+		});
 
 		if (!this.plugin.settings.defaultIconRules) {
 			this.plugin.settings.defaultIconRules = [];
 		}
 
-		this.rulesListEl = containerEl.createDiv('iconocolor-rules-list');
+		this.rulesListEl = this.captureGroupContainer(defaultIconsGroup)?.createDiv('iconocolor-rules-list') ?? null;
 		this.renderDefaultIconRulesList();
 
-		new Setting(containerEl)
-			.addButton(button => {
+		defaultIconsGroup.addSetting(setting => {
+			setting.addButton(button => {
 				button
 					.setButtonText('Add rule')
 					.setCta()
@@ -311,67 +290,69 @@ export class IconocolorSettingTab extends PluginSettingTab {
 						void this.addDefaultIconRule();
 					});
 			});
+		});
 
 		// Icon Packs section
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Icon packs');
+		const iconPacksGroup = new SettingGroup(containerEl).setHeading('Icon packs');
 
-		new Setting(containerEl)
-			.setName('Browse icon packs')
-			.setDesc('Search and download from available icon packs.')
-			.addButton(button => {
-				button
-					.setButtonText('Browse packs')
-					.setCta()
-					.onClick(() => {
-						new BrowsePacksModal(this.app, () => {
-							this.refreshInstalledPacksList();
-						}).open();
-					});
-			});
+		iconPacksGroup.addSetting(setting => {
+			setting
+				.setName('Browse icon packs')
+				.setDesc('Search and download from available icon packs.')
+				.addButton(button => {
+					button
+						.setButtonText('Browse packs')
+						.setCta()
+						.onClick(() => {
+							new BrowsePacksModal(this.app, () => {
+								this.refreshInstalledPacksList();
+							}).open();
+						});
+				});
+		});
 
-		this.packsListEl = containerEl.createDiv('iconocolor-packs-list');
+		this.packsListEl = this.captureGroupContainer(iconPacksGroup)?.createDiv('iconocolor-packs-list') ?? null;
 		this.refreshInstalledPacksList();
 
 		// Configured folders section
 		const folders = Object.keys(this.plugin.settings.folderConfigs);
-		
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Configured folders');
-		
+		const foldersGroup = new SettingGroup(containerEl).setHeading('Configured folders');
+
 		if (folders.length > 0) {
 			for (const folderPath of folders) {
 				const config = this.plugin.settings.folderConfigs[folderPath];
-				
-				const folderSetting = new Setting(containerEl)
-					.setName(folderPath)
-					.setDesc(this.getConfigDescription(config));
 
-				folderSetting.addButton((button) => {
-					button
-						.setButtonText('Edit')
-						.onClick(() => {
-							void this.editFolderConfig(folderPath, config);
-						});
-				});
+				foldersGroup.addSetting(folderSetting => {
+					folderSetting
+						.setName(folderPath)
+						.setDesc(this.getConfigDescription(config));
 
-				folderSetting.addButton((button) => {
-					button
-						.setButtonText('Remove')
-						.onClick(() => {
-							void (async () => {
-								await this.plugin.folderManager.removeFolderConfig(folderPath);
-								this.displayWithScrollPreservation();
-							})();
-						});
+					folderSetting.addButton((button) => {
+						button
+							.setButtonText('Edit')
+							.onClick(() => {
+								void this.editFolderConfig(folderPath, config);
+							});
+					});
+
+					folderSetting.addButton((button) => {
+						button
+							.setButtonText('Remove')
+							.onClick(() => {
+								void (async () => {
+									await this.plugin.folderManager.removeFolderConfig(folderPath);
+									this.displayWithScrollPreservation();
+								})();
+							});
+					});
 				});
 			}
 		} else {
-			new Setting(containerEl)
-				.setName('No folders configured')
-				.setDesc('Right-click on a folder in the file explorer to set its icon and colors.');
+			foldersGroup.addSetting(setting => {
+				setting
+					.setName('No folders configured')
+					.setDesc('Right-click on a folder in the file explorer to set its icon and colors.');
+			});
 		}
 
 		// Profile management (at the end - saves/loads all settings)
@@ -387,6 +368,22 @@ export class IconocolorSettingTab extends PluginSettingTab {
 				}
 			});
 		}
+	}
+
+	/**
+	 * SettingGroup exposes `addSetting` but not the underlying content
+	 * container element. We need that element to append non-Setting nodes
+	 * (e.g. a sub-div that holds a dynamically rebuilt list) inside the
+	 * group, so we drop in a temporary placeholder Setting, capture its
+	 * parent, and remove the placeholder.
+	 */
+	private captureGroupContainer(group: SettingGroup): HTMLElement | null {
+		let parent: HTMLElement | null = null;
+		group.addSetting((setting) => {
+			parent = setting.settingEl.parentElement;
+			setting.settingEl.remove();
+		});
+		return parent;
 	}
 
 	/**
@@ -883,100 +880,94 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	/**
 	 * Add preview showing how base color transforms into element colors
 	 */
-	private addBaseTransformationPreview(containerEl: HTMLElement): void {
+	private addBaseTransformationPreview(group: SettingGroup): void {
 		// Sample base color (use first color from active palette)
 		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
 		const sampleBaseColor = activePalette?.colors[0] || '#4ECDC4';
-		
-		const previewSetting = new Setting(containerEl)
-			.setName('Preview: base color → element colors')
-			.setDesc('');
-		
-		// Remove the description element to make it cleaner
-		const descEl = previewSetting.descEl;
-		if (descEl) {
-			descEl.remove();
-		}
-		
-		const previewContent = previewSetting.controlEl;
-		setCssProps(previewContent, {
-			display: 'flex',
-			alignItems: 'center',
-			gap: '8px',
-			flexWrap: 'wrap',
-			width: '100%',
+
+		group.addSetting(previewSetting => {
+			previewSetting
+				.setName('Preview: base color → element colors')
+				.setDesc('');
+
+			const descEl = previewSetting.descEl;
+			if (descEl) {
+				descEl.remove();
+			}
+
+			const previewContent = previewSetting.controlEl;
+			setCssProps(previewContent, {
+				display: 'flex',
+				alignItems: 'center',
+				gap: '8px',
+				flexWrap: 'wrap',
+				width: '100%',
+			});
+
+			const baseSwatch = previewContent.createDiv();
+			setCssProps(baseSwatch, {
+				display: 'flex',
+				flexDirection: 'column',
+				alignItems: 'center',
+				gap: '3px',
+			});
+
+			const baseColorBox = baseSwatch.createDiv();
+			setCssProps(baseColorBox, {
+				width: '36px',
+				height: '36px',
+				borderRadius: '4px',
+				border: '1px solid var(--background-modifier-border)',
+				backgroundColor: sampleBaseColor,
+				boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+			});
+
+			const baseLabel = baseSwatch.createEl('span', { text: 'Base' });
+			setCssProps(baseLabel, {
+				fontSize: '9px',
+				color: 'var(--text-muted)',
+			});
+
+			const baseColorValue = baseSwatch.createEl('span', { text: sampleBaseColor });
+			setCssProps(baseColorValue, {
+				fontSize: '8px',
+				fontFamily: 'var(--font-monospace)',
+				color: 'var(--text-faint)',
+			});
+
+			const arrow = previewContent.createEl('span', { text: '→' });
+			setCssProps(arrow, {
+				fontSize: '16px',
+				color: 'var(--text-muted)',
+			});
+
+			const transformedContainer = previewContent.createDiv();
+			setCssProps(transformedContainer, {
+				display: 'flex',
+				gap: '6px',
+				flexWrap: 'wrap',
+			});
+
+			const updatePreview = () => {
+				transformedContainer.empty();
+
+				const iconColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.iconColorTransformation);
+				this.addColorPreview(transformedContainer, 'Icon', iconColor);
+
+				const folderColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.folderColorTransformation);
+				this.addColorPreview(transformedContainer, 'Background', folderColor);
+
+				const textColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.textColorTransformation);
+				this.addColorPreview(transformedContainer, 'Text', textColor);
+			};
+
+			updatePreview();
+
+			interface SettingElementWithPreview extends HTMLElement {
+				updatePreview?: () => void;
+			}
+			(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
 		});
-		
-		// Base color swatch
-		const baseSwatch = previewContent.createDiv();
-		setCssProps(baseSwatch, {
-			display: 'flex',
-			flexDirection: 'column',
-			alignItems: 'center',
-			gap: '3px',
-		});
-		
-		const baseColorBox = baseSwatch.createDiv();
-		setCssProps(baseColorBox, {
-			width: '36px',
-			height: '36px',
-			borderRadius: '4px',
-			border: '1px solid var(--background-modifier-border)',
-			backgroundColor: sampleBaseColor,
-			boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-		});
-		
-		const baseLabel = baseSwatch.createEl('span', { text: 'Base' });
-		setCssProps(baseLabel, {
-			fontSize: '9px',
-			color: 'var(--text-muted)',
-		});
-		
-		const baseColorValue = baseSwatch.createEl('span', { text: sampleBaseColor });
-		setCssProps(baseColorValue, {
-			fontSize: '8px',
-			fontFamily: 'var(--font-monospace)',
-			color: 'var(--text-faint)',
-		});
-		
-		// Arrow
-		const arrow = previewContent.createEl('span', { text: '→' });
-		setCssProps(arrow, {
-			fontSize: '16px',
-			color: 'var(--text-muted)',
-		});
-		
-		// Transformed colors
-		const transformedContainer = previewContent.createDiv();
-		setCssProps(transformedContainer, {
-			display: 'flex',
-			gap: '6px',
-			flexWrap: 'wrap',
-		});
-		
-		const updatePreview = () => {
-			transformedContainer.empty();
-			
-			// Icon color
-			const iconColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.iconColorTransformation);
-			this.addColorPreview(transformedContainer, 'Icon', iconColor);
-			
-			// Folder color
-			const folderColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.folderColorTransformation);
-			this.addColorPreview(transformedContainer, 'Background', folderColor);
-			
-			// Text color
-			const textColor = this.applyTransformation(sampleBaseColor, this.plugin.settings.textColorTransformation);
-			this.addColorPreview(transformedContainer, 'Text', textColor);
-		};
-		
-		updatePreview();
-		
-		// Store update function for later use
-		interface SettingElementWithPreview extends HTMLElement {
-			updatePreview?: () => void;
-		}
-		(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
 	}
 	
 	/**
@@ -1055,520 +1046,536 @@ export class IconocolorSettingTab extends PluginSettingTab {
 	/**
 	 * Add preview showing how child base colors are derived from parent
 	 */
-	private addChildBaseTransformationPreview(containerEl: HTMLElement): void {
+	private addChildBaseTransformationPreview(group: SettingGroup): void {
 		// Sample parent color
 		const activePalette = this.plugin.settings.colorPalettes[this.plugin.settings.activePaletteIndex || 0];
 		const parentColor = activePalette?.colors[0] || '#4ECDC4';
-		
-		const previewSetting = new Setting(containerEl)
-			.setName('Preview: parent → child colors')
-			.setDesc('');
-		
-		// Remove the description element to make it cleaner
-		const descEl = previewSetting.descEl;
-		if (descEl) {
-			descEl.remove();
-		}
-		
-		const previewContent = previewSetting.controlEl;
-		setCssProps(previewContent, {
-			display: 'flex',
-			alignItems: 'center',
-			gap: '8px',
-			flexWrap: 'wrap',
-			width: '100%',
-		});
-		
-		// Parent color (static)
-		const parentSwatch = previewContent.createDiv();
-		setCssProps(parentSwatch, {
-			display: 'flex',
-			flexDirection: 'column',
-			alignItems: 'center',
-			gap: '3px',
-		});
-		
-		const parentBox = parentSwatch.createDiv();
-		setCssProps(parentBox, {
-			width: '36px',
-			height: '36px',
-			borderRadius: '4px',
-			border: '1px solid var(--background-modifier-border)',
-			backgroundColor: parentColor,
-			boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-		});
-		
-		const parentLabel = parentSwatch.createEl('span', { text: 'Parent' });
-		setCssProps(parentLabel, {
-			fontSize: '9px',
-			color: 'var(--text-muted)',
-		});
-		
-		const parentColorValue = parentSwatch.createEl('span', { text: parentColor });
-		setCssProps(parentColorValue, {
-			fontSize: '8px',
-			fontFamily: 'var(--font-monospace)',
-			color: 'var(--text-faint)',
-		});
-		
-		// Arrow (static)
-		const arrow = previewContent.createEl('span', { text: '→' });
-		setCssProps(arrow, {
-			fontSize: '16px',
-			color: 'var(--text-muted)',
-		});
-		
-		// Child colors container (will be updated)
-		const childContainer = previewContent.createDiv();
-		setCssProps(childContainer, {
-			display: 'flex',
-			gap: '6px',
-			flexWrap: 'wrap',
-		});
-		
-		const updatePreview = () => {
-			childContainer.empty();
-			
-			const transformation = this.plugin.settings.childBaseTransformation;
-			
-			// Skip if no inheritance
-			if (transformation.type === 'none') {
-				return;
+
+		group.addSetting(previewSetting => {
+			previewSetting
+				.setName('Preview: parent → child colors')
+				.setDesc('');
+
+			const descEl = previewSetting.descEl;
+			if (descEl) {
+				descEl.remove();
 			}
-			
-			// Generate 3 child colors showing consecutive/cumulative transformations
-			// Ignore gradient setting - just show pure consecutive transformations
-			let currentColor = parentColor;
-			
-			for (let i = 0; i < 3; i++) {
-				// Each child applies transformation to previous child's result (cumulative)
-				let childBaseColor = currentColor;
-				
-				if (transformation.type === 'hsl') {
-					childBaseColor = applyHSLTransformation(childBaseColor, {
-						hue: transformation.hue || 0,
-						saturation: transformation.saturation || 0,
-						lightness: transformation.lightness || 0,
-					});
-				} else if (transformation.type === 'lightness' && transformation.adjustment !== undefined) {
-					childBaseColor = applyLightnessTransformation(childBaseColor, transformation.adjustment);
+
+			const previewContent = previewSetting.controlEl;
+			setCssProps(previewContent, {
+				display: 'flex',
+				alignItems: 'center',
+				gap: '8px',
+				flexWrap: 'wrap',
+				width: '100%',
+			});
+
+			const parentSwatch = previewContent.createDiv();
+			setCssProps(parentSwatch, {
+				display: 'flex',
+				flexDirection: 'column',
+				alignItems: 'center',
+				gap: '3px',
+			});
+
+			const parentBox = parentSwatch.createDiv();
+			setCssProps(parentBox, {
+				width: '36px',
+				height: '36px',
+				borderRadius: '4px',
+				border: '1px solid var(--background-modifier-border)',
+				backgroundColor: parentColor,
+				boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+			});
+
+			const parentLabel = parentSwatch.createEl('span', { text: 'Parent' });
+			setCssProps(parentLabel, {
+				fontSize: '9px',
+				color: 'var(--text-muted)',
+			});
+
+			const parentColorValue = parentSwatch.createEl('span', { text: parentColor });
+			setCssProps(parentColorValue, {
+				fontSize: '8px',
+				fontFamily: 'var(--font-monospace)',
+				color: 'var(--text-faint)',
+			});
+
+			const arrow = previewContent.createEl('span', { text: '→' });
+			setCssProps(arrow, {
+				fontSize: '16px',
+				color: 'var(--text-muted)',
+			});
+
+			const childContainer = previewContent.createDiv();
+			setCssProps(childContainer, {
+				display: 'flex',
+				gap: '6px',
+				flexWrap: 'wrap',
+			});
+
+			const updatePreview = () => {
+				childContainer.empty();
+
+				const transformation = this.plugin.settings.childBaseTransformation;
+
+				if (transformation.type === 'none') {
+					return;
 				}
-				
-				// Update current for next iteration (cumulative effect)
-				currentColor = childBaseColor;
-				
-				const childSwatch = childContainer.createDiv();
-				setCssProps(childSwatch, {
-					display: 'flex',
-					flexDirection: 'column',
-					alignItems: 'center',
-					gap: '3px',
-				});
-				
-				const childBox = childSwatch.createDiv();
-				setCssProps(childBox, {
-					width: '36px',
-					height: '36px',
-					borderRadius: '4px',
-					border: '1px solid var(--background-modifier-border)',
-					backgroundColor: childBaseColor,
-					boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-				});
-				
-				const childLabel = childSwatch.createEl('span', { text: `C${i + 1}` });
-				setCssProps(childLabel, {
-					fontSize: '9px',
-					color: 'var(--text-muted)',
-				});
-				
-				const childColorValue = childSwatch.createEl('span', { text: childBaseColor });
-				setCssProps(childColorValue, {
-					fontSize: '8px',
-					fontFamily: 'var(--font-monospace)',
-					color: 'var(--text-faint)',
-				});
+
+				// Generate 3 child colors showing consecutive/cumulative transformations
+				// Ignore gradient setting - just show pure consecutive transformations
+				let currentColor = parentColor;
+
+				for (let i = 0; i < 3; i++) {
+					let childBaseColor = currentColor;
+
+					if (transformation.type === 'hsl') {
+						childBaseColor = applyHSLTransformation(childBaseColor, {
+							hue: transformation.hue || 0,
+							saturation: transformation.saturation || 0,
+							lightness: transformation.lightness || 0,
+						});
+					} else if (transformation.type === 'lightness' && transformation.adjustment !== undefined) {
+						childBaseColor = applyLightnessTransformation(childBaseColor, transformation.adjustment);
+					}
+
+					currentColor = childBaseColor;
+
+					const childSwatch = childContainer.createDiv();
+					setCssProps(childSwatch, {
+						display: 'flex',
+						flexDirection: 'column',
+						alignItems: 'center',
+						gap: '3px',
+					});
+
+					const childBox = childSwatch.createDiv();
+					setCssProps(childBox, {
+						width: '36px',
+						height: '36px',
+						borderRadius: '4px',
+						border: '1px solid var(--background-modifier-border)',
+						backgroundColor: childBaseColor,
+						boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+					});
+
+					const childLabel = childSwatch.createEl('span', { text: `C${i + 1}` });
+					setCssProps(childLabel, {
+						fontSize: '9px',
+						color: 'var(--text-muted)',
+					});
+
+					const childColorValue = childSwatch.createEl('span', { text: childBaseColor });
+					setCssProps(childColorValue, {
+						fontSize: '8px',
+						fontFamily: 'var(--font-monospace)',
+						color: 'var(--text-faint)',
+					});
+				}
+			};
+
+			updatePreview();
+
+			interface SettingElementWithPreview extends HTMLElement {
+				updatePreview?: () => void;
 			}
-		};
-		
-		updatePreview();
-		
-		// Store update function for later use
-		interface SettingElementWithPreview extends HTMLElement {
-			updatePreview?: () => void;
-		}
-		(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
+			(previewSetting.settingEl as SettingElementWithPreview).updatePreview = updatePreview;
+		});
 	}
 
 	/**
 	 * Add transformation setting UI
 	 */
-	private addTransformationSetting(containerEl: HTMLElement, label: string, settingKey: 'iconColorTransformation' | 'folderColorTransformation' | 'textColorTransformation'): void {
+	private addTransformationSetting(group: SettingGroup, label: string, settingKey: 'iconColorTransformation' | 'folderColorTransformation' | 'textColorTransformation'): void {
 		const current = this.plugin.settings[settingKey] || { type: 'none' };
-		
-		new Setting(containerEl)
-			.setName(`${label} transformation`)
-			.setDesc('How this color is derived from base color')
-			.addDropdown(dropdown => {
-				dropdown
-					.addOption('none', 'None (same as base)')
-					.addOption('lightness', 'Lightness adjustment')
-					.addOption('hsl', 'HSL transformation');
-				dropdown.setValue(current.type);
-				dropdown.onChange(async (value) => {
-					if (value === 'none') {
-						this.plugin.settings[settingKey] = { type: 'none' };
-					} else if (value === 'lightness') {
-						this.plugin.settings[settingKey] = {
-							type: 'lightness',
-							adjustment: (current.type === 'lightness' && current.adjustment !== undefined) ? current.adjustment : 0
-						};
-					} else if (value === 'hsl') {
-						this.plugin.settings[settingKey] = {
-							type: 'hsl',
-							hue: (current.type === 'hsl' && current.hue !== undefined) ? current.hue : 0,
-							saturation: (current.type === 'hsl' && current.saturation !== undefined) ? current.saturation : 0,
-							lightness: (current.type === 'hsl' && current.lightness !== undefined) ? current.lightness : 0
-						};
-					}
-					await this.plugin.saveSettings();
-					await this.plugin.folderManager.updateSettings(this.plugin.settings);
-					this.updateAllPreviews();
-					this.display();
+
+		group.addSetting(setting => {
+			setting
+				.setName(`${label} transformation`)
+				.setDesc('How this color is derived from base color')
+				.addDropdown(dropdown => {
+					dropdown
+						.addOption('none', 'None (same as base)')
+						.addOption('lightness', 'Lightness adjustment')
+						.addOption('hsl', 'HSL transformation');
+					dropdown.setValue(current.type);
+					dropdown.onChange(async (value) => {
+						if (value === 'none') {
+							this.plugin.settings[settingKey] = { type: 'none' };
+						} else if (value === 'lightness') {
+							this.plugin.settings[settingKey] = {
+								type: 'lightness',
+								adjustment: (current.type === 'lightness' && current.adjustment !== undefined) ? current.adjustment : 0
+							};
+						} else if (value === 'hsl') {
+							this.plugin.settings[settingKey] = {
+								type: 'hsl',
+								hue: (current.type === 'hsl' && current.hue !== undefined) ? current.hue : 0,
+								saturation: (current.type === 'hsl' && current.saturation !== undefined) ? current.saturation : 0,
+								lightness: (current.type === 'hsl' && current.lightness !== undefined) ? current.lightness : 0
+							};
+						}
+						await this.plugin.saveSettings();
+						await this.plugin.folderManager.updateSettings(this.plugin.settings);
+						this.updateAllPreviews();
+						this.display();
+					});
 				});
+		});
+
+		if (current.type === 'lightness') {
+			group.addSetting(setting => {
+				setting
+					.setName(`${label} lightness adjustment`)
+					.setDesc('Percentage: positive = lighter, negative = darker (-100 to 100)')
+					.addText(text => {
+						text.setPlaceholder('0')
+							.setValue(current.adjustment !== undefined ? String(current.adjustment) : '0')
+							.onChange(async (value) => {
+								const numValue = value.trim() === '' ? 0 : parseFloat(value);
+								if (!isNaN(numValue)) {
+									const transformation = this.plugin.settings[settingKey];
+									if (transformation.type === 'lightness') {
+										transformation.adjustment = Math.max(-100, Math.min(100, numValue));
+									}
+									await this.plugin.saveSettings();
+									await this.plugin.folderManager.updateSettings(this.plugin.settings);
+									this.updateAllPreviews();
+								}
+							});
+					});
+			});
+		} else if (current.type === 'hsl') {
+			group.addSetting(setting => {
+				setting
+					.setName(`${label} hue shift`)
+					.setDesc('Hue shift in degrees (-180 to 180)')
+					.addText(text => {
+						text.setPlaceholder('0')
+							.setValue(current.hue !== undefined ? String(current.hue) : '0')
+							.onChange(async (value) => {
+								const numValue = value.trim() === '' ? 0 : parseFloat(value);
+								if (!isNaN(numValue)) {
+									const transformation = this.plugin.settings[settingKey];
+									if (transformation.type === 'hsl') {
+										transformation.hue = Math.max(-180, Math.min(180, numValue));
+									}
+									await this.plugin.saveSettings();
+									await this.plugin.folderManager.updateSettings(this.plugin.settings);
+									this.updateAllPreviews();
+								}
+							});
+					});
 			});
 
-		// Show additional inputs based on type
-		if (current.type === 'lightness') {
-			new Setting(containerEl)
-				.setName(`${label} lightness adjustment`)
-				.setDesc('Percentage: positive = lighter, negative = darker (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.adjustment !== undefined ? String(current.adjustment) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								const transformation = this.plugin.settings[settingKey];
-								if (transformation.type === 'lightness') {
-									transformation.adjustment = Math.max(-100, Math.min(100, numValue));
+			group.addSetting(setting => {
+				setting
+					.setName(`${label} saturation adjustment`)
+					.setDesc('Saturation adjustment in percentage (-100 to 100)')
+					.addText(text => {
+						text.setPlaceholder('0')
+							.setValue(current.saturation !== undefined ? String(current.saturation) : '0')
+							.onChange(async (value) => {
+								const numValue = value.trim() === '' ? 0 : parseFloat(value);
+								if (!isNaN(numValue)) {
+									const transformation = this.plugin.settings[settingKey];
+									if (transformation.type === 'hsl') {
+										transformation.saturation = Math.max(-100, Math.min(100, numValue));
+									}
+									await this.plugin.saveSettings();
+									await this.plugin.folderManager.updateSettings(this.plugin.settings);
+									this.updateAllPreviews();
 								}
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
-						});
-				});
-		} else if (current.type === 'hsl') {
-			new Setting(containerEl)
-				.setName(`${label} hue shift`)
-				.setDesc('Hue shift in degrees (-180 to 180)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.hue !== undefined ? String(current.hue) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								const transformation = this.plugin.settings[settingKey];
-								if (transformation.type === 'hsl') {
-									transformation.hue = Math.max(-180, Math.min(180, numValue));
-								}
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
-						});
-				});
+							});
+					});
+			});
 
-			new Setting(containerEl)
-				.setName(`${label} saturation adjustment`)
-				.setDesc('Saturation adjustment in percentage (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.saturation !== undefined ? String(current.saturation) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								const transformation = this.plugin.settings[settingKey];
-								if (transformation.type === 'hsl') {
-									transformation.saturation = Math.max(-100, Math.min(100, numValue));
+			group.addSetting(setting => {
+				setting
+					.setName(`${label} lightness adjustment`)
+					.setDesc('Lightness adjustment in percentage (-100 to 100)')
+					.addText(text => {
+						text.setPlaceholder('0')
+							.setValue(current.lightness !== undefined ? String(current.lightness) : '0')
+							.onChange(async (value) => {
+								const numValue = value.trim() === '' ? 0 : parseFloat(value);
+								if (!isNaN(numValue)) {
+									const transformation = this.plugin.settings[settingKey];
+									if (transformation.type === 'hsl') {
+										transformation.lightness = Math.max(-100, Math.min(100, numValue));
+									}
+									await this.plugin.saveSettings();
+									await this.plugin.folderManager.updateSettings(this.plugin.settings);
+									this.updateAllPreviews();
 								}
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
-						});
-				});
-
-			new Setting(containerEl)
-				.setName(`${label} lightness adjustment`)
-				.setDesc('Lightness adjustment in percentage (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.lightness !== undefined ? String(current.lightness) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								const transformation = this.plugin.settings[settingKey];
-								if (transformation.type === 'hsl') {
-									transformation.lightness = Math.max(-100, Math.min(100, numValue));
-								}
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
-						});
-				});
+							});
+					});
+			});
 		}
 	}
 
 	/**
 	 * Add child base transformation settings
 	 */
-	private addChildBaseTransformationSettings(containerEl: HTMLElement): void {
+	private addChildBaseTransformationSettings(group: SettingGroup): void {
 		const current = this.plugin.settings.childBaseTransformation || { type: 'lightness', adjustment: 10, backgroundOpacity: 100 };
-		
-		new Setting(containerEl)
-			.setName('Transformation type')
-			.setDesc('How child base color is derived from parent base color')
-			.addDropdown(dropdown => {
-				dropdown
-					.addOption('none', 'None (no inheritance)')
-					.addOption('lightness', 'Lightness adjustment')
-					.addOption('hsl', 'HSL transformation');
-				dropdown.setValue(current.type || 'lightness');
-				dropdown.onChange(async (value) => {
-					if (value === 'none') {
-						this.plugin.settings.childBaseTransformation = {
-							type: 'none',
-						};
-					} else if (value === 'lightness') {
-						this.plugin.settings.childBaseTransformation = {
-							type: 'lightness',
-							adjustment: (current.type === 'lightness' && current.adjustment !== undefined) ? current.adjustment : 10,
-							useGradient: current.useGradient !== undefined ? current.useGradient : false,
-							backgroundOpacity: current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100
-						};
-					} else if (value === 'hsl') {
-						this.plugin.settings.childBaseTransformation = {
-							type: 'hsl',
-							hue: (current.type === 'hsl' && current.hue !== undefined) ? current.hue : 0,
-							saturation: (current.type === 'hsl' && current.saturation !== undefined) ? current.saturation : 0,
-							lightness: (current.type === 'hsl' && current.lightness !== undefined) ? current.lightness : 10,
-							useGradient: current.useGradient !== undefined ? current.useGradient : false,
-							backgroundOpacity: current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100
-						};
-					}
-					await this.plugin.saveSettings();
-					await this.plugin.folderManager.updateSettings(this.plugin.settings);
-					this.updateAllPreviews();
-					this.displayWithScrollPreservation();
+
+		group.addSetting(setting => {
+			setting
+				.setName('Transformation type')
+				.setDesc('How child base color is derived from parent base color')
+				.addDropdown(dropdown => {
+					dropdown
+						.addOption('none', 'None (no inheritance)')
+						.addOption('lightness', 'Lightness adjustment')
+						.addOption('hsl', 'HSL transformation');
+					dropdown.setValue(current.type || 'lightness');
+					dropdown.onChange(async (value) => {
+						if (value === 'none') {
+							this.plugin.settings.childBaseTransformation = {
+								type: 'none',
+							};
+						} else if (value === 'lightness') {
+							this.plugin.settings.childBaseTransformation = {
+								type: 'lightness',
+								adjustment: (current.type === 'lightness' && current.adjustment !== undefined) ? current.adjustment : 10,
+								useGradient: current.useGradient !== undefined ? current.useGradient : false,
+								backgroundOpacity: current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100
+							};
+						} else if (value === 'hsl') {
+							this.plugin.settings.childBaseTransformation = {
+								type: 'hsl',
+								hue: (current.type === 'hsl' && current.hue !== undefined) ? current.hue : 0,
+								saturation: (current.type === 'hsl' && current.saturation !== undefined) ? current.saturation : 0,
+								lightness: (current.type === 'hsl' && current.lightness !== undefined) ? current.lightness : 10,
+								useGradient: current.useGradient !== undefined ? current.useGradient : false,
+								backgroundOpacity: current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100
+							};
+						}
+						await this.plugin.saveSettings();
+						await this.plugin.folderManager.updateSettings(this.plugin.settings);
+						this.updateAllPreviews();
+						this.displayWithScrollPreservation();
+					});
 				});
+		});
+
+		if (current.type !== 'none') {
+			group.addSetting(setting => {
+				setting
+					.setName('Use gradient')
+					.setDesc('Interpolate between parent and next sibling before applying transformation. Gradient automatically distributes across all children.')
+					.addToggle(toggle => {
+						toggle
+							.setValue(current.useGradient !== undefined ? current.useGradient : false)
+							.onChange(async (value) => {
+								this.plugin.settings.childBaseTransformation.useGradient = value;
+								await this.plugin.saveSettings();
+								await this.plugin.folderManager.updateSettings(this.plugin.settings);
+								this.updateAllPreviews();
+								this.displayWithScrollPreservation();
+							});
+					});
 			});
 
-		// Only show transformation options if type is not 'none'
-		if (current.type !== 'none') {
-			// Gradient toggle
-			new Setting(containerEl)
-				.setName('Use gradient')
-				.setDesc('Interpolate between parent and next sibling before applying transformation. Gradient automatically distributes across all children.')
-				.addToggle(toggle => {
-					toggle
-						.setValue(current.useGradient !== undefined ? current.useGradient : false)
-						.onChange(async (value) => {
-							this.plugin.settings.childBaseTransformation.useGradient = value;
-							await this.plugin.saveSettings();
-							await this.plugin.folderManager.updateSettings(this.plugin.settings);
-							this.updateAllPreviews();
-							this.displayWithScrollPreservation();
-						});
-				});
-
 			if (current.type === 'lightness') {
-			new Setting(containerEl)
-				.setName('Lightness adjustment')
-				.setDesc('Percentage: positive = lighter, negative = darker (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('10')
-						.setValue(current.adjustment !== undefined ? String(current.adjustment) : '10')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 10 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								this.plugin.settings.childBaseTransformation.adjustment = Math.max(-100, Math.min(100, numValue));
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
+				group.addSetting(setting => {
+					setting
+						.setName('Lightness adjustment')
+						.setDesc('Percentage: positive = lighter, negative = darker (-100 to 100)')
+						.addText(text => {
+							text.setPlaceholder('10')
+								.setValue(current.adjustment !== undefined ? String(current.adjustment) : '10')
+								.onChange(async (value) => {
+									const numValue = value.trim() === '' ? 10 : parseFloat(value);
+									if (!isNaN(numValue)) {
+										this.plugin.settings.childBaseTransformation.adjustment = Math.max(-100, Math.min(100, numValue));
+										await this.plugin.saveSettings();
+										await this.plugin.folderManager.updateSettings(this.plugin.settings);
+										this.updateAllPreviews();
+									}
+								});
 						});
 				});
-		} else if (current.type === 'hsl') {
-			new Setting(containerEl)
-				.setName('Hue shift')
-				.setDesc('Hue shift in degrees (-180 to 180)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.hue !== undefined ? String(current.hue) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								this.plugin.settings.childBaseTransformation.hue = Math.max(-180, Math.min(180, numValue));
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
-						});
-				});
-
-			new Setting(containerEl)
-				.setName('Saturation adjustment')
-				.setDesc('Saturation adjustment in percentage (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('0')
-						.setValue(current.saturation !== undefined ? String(current.saturation) : '0')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 0 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								this.plugin.settings.childBaseTransformation.saturation = Math.max(-100, Math.min(100, numValue));
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
+			} else if (current.type === 'hsl') {
+				group.addSetting(setting => {
+					setting
+						.setName('Hue shift')
+						.setDesc('Hue shift in degrees (-180 to 180)')
+						.addText(text => {
+							text.setPlaceholder('0')
+								.setValue(current.hue !== undefined ? String(current.hue) : '0')
+								.onChange(async (value) => {
+									const numValue = value.trim() === '' ? 0 : parseFloat(value);
+									if (!isNaN(numValue)) {
+										this.plugin.settings.childBaseTransformation.hue = Math.max(-180, Math.min(180, numValue));
+										await this.plugin.saveSettings();
+										await this.plugin.folderManager.updateSettings(this.plugin.settings);
+										this.updateAllPreviews();
+									}
+								});
 						});
 				});
 
-			new Setting(containerEl)
-				.setName('Lightness adjustment')
-				.setDesc('Lightness adjustment in percentage (-100 to 100)')
-				.addText(text => {
-					text.setPlaceholder('10')
-						.setValue(current.lightness !== undefined ? String(current.lightness) : '10')
-						.onChange(async (value) => {
-							const numValue = value.trim() === '' ? 10 : parseFloat(value);
-							if (!isNaN(numValue)) {
-								this.plugin.settings.childBaseTransformation.lightness = Math.max(-100, Math.min(100, numValue));
-								await this.plugin.saveSettings();
-								await this.plugin.folderManager.updateSettings(this.plugin.settings);
-								this.updateAllPreviews();
-							}
+				group.addSetting(setting => {
+					setting
+						.setName('Saturation adjustment')
+						.setDesc('Saturation adjustment in percentage (-100 to 100)')
+						.addText(text => {
+							text.setPlaceholder('0')
+								.setValue(current.saturation !== undefined ? String(current.saturation) : '0')
+								.onChange(async (value) => {
+									const numValue = value.trim() === '' ? 0 : parseFloat(value);
+									if (!isNaN(numValue)) {
+										this.plugin.settings.childBaseTransformation.saturation = Math.max(-100, Math.min(100, numValue));
+										await this.plugin.saveSettings();
+										await this.plugin.folderManager.updateSettings(this.plugin.settings);
+										this.updateAllPreviews();
+									}
+								});
+						});
+				});
+
+				group.addSetting(setting => {
+					setting
+						.setName('Lightness adjustment')
+						.setDesc('Lightness adjustment in percentage (-100 to 100)')
+						.addText(text => {
+							text.setPlaceholder('10')
+								.setValue(current.lightness !== undefined ? String(current.lightness) : '10')
+								.onChange(async (value) => {
+									const numValue = value.trim() === '' ? 10 : parseFloat(value);
+									if (!isNaN(numValue)) {
+										this.plugin.settings.childBaseTransformation.lightness = Math.max(-100, Math.min(100, numValue));
+										await this.plugin.saveSettings();
+										await this.plugin.folderManager.updateSettings(this.plugin.settings);
+										this.updateAllPreviews();
+									}
+								});
 						});
 				});
 			}
 		}
 
-		// Background opacity
-		new Setting(containerEl)
-			.setName('Background opacity')
-			.setDesc('Opacity for child folder backgrounds (0-100, 0 = fully transparent, 100 = fully opaque)')
-			.addSlider(slider => {
-				slider
-					.setLimits(0, 100, 1)
-					.setValue(current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100)
-					.setDynamicTooltip()
-					.onChange(async (value) => {
-						this.plugin.settings.childBaseTransformation.backgroundOpacity = value;
-						await this.plugin.saveSettings();
-						this.plugin.folderManager.applyAllStyles();
-						this.updateAllPreviews();
-					});
-			})
-			.addText(text => {
-				text
-					.setValue(String(current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100))
-					.setPlaceholder('100')
-					.onChange(async (value) => {
-						const numValue = parseInt(value, 10);
-						if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-							this.plugin.settings.childBaseTransformation.backgroundOpacity = numValue;
+		group.addSetting(setting => {
+			setting
+				.setName('Background opacity')
+				.setDesc('Opacity for child folder backgrounds (0-100, 0 = fully transparent, 100 = fully opaque)')
+				.addSlider(slider => {
+					slider
+						.setLimits(0, 100, 1)
+						.setValue(current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100)
+						.setDynamicTooltip()
+						.onChange(async (value) => {
+							this.plugin.settings.childBaseTransformation.backgroundOpacity = value;
 							await this.plugin.saveSettings();
 							this.plugin.folderManager.applyAllStyles();
 							this.updateAllPreviews();
-						}
-					});
-			});
+						});
+				})
+				.addText(text => {
+					text
+						.setValue(String(current.backgroundOpacity !== undefined ? current.backgroundOpacity : 100))
+						.setPlaceholder('100')
+						.onChange(async (value) => {
+							const numValue = parseInt(value, 10);
+							if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+								this.plugin.settings.childBaseTransformation.backgroundOpacity = numValue;
+								await this.plugin.saveSettings();
+								this.plugin.folderManager.applyAllStyles();
+								this.updateAllPreviews();
+							}
+						});
+				});
+		});
 	}
 
 	/**
 	 * Add profile management section
 	 */
 	private addProfileManagementSettings(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setHeading()
-			.setName('Settings profiles');
+		const profilesGroup = new SettingGroup(containerEl).setHeading('Settings profiles');
 
-		// Current profile indicator
 		if (this.plugin.settings.activeProfileId) {
 			const activeProfile = this.plugin.settings.profiles?.find(p => p.id === this.plugin.settings.activeProfileId);
 			if (activeProfile) {
-				new Setting(containerEl)
-					.setName('Active profile')
-					.setDesc(`Currently using profile: ${activeProfile.name}`)
-					.addButton(button => {
-						button
-							.setButtonText('Clear profile')
-							.setCta()
-							.onClick(async () => {
-							this.plugin.settings.activeProfileId = undefined;
-							await this.plugin.saveSettings();
-							this.displayWithScrollPreservation();
+				profilesGroup.addSetting(setting => {
+					setting
+						.setName('Active profile')
+						.setDesc(`Currently using profile: ${activeProfile.name}`)
+						.addButton(button => {
+							button
+								.setButtonText('Clear profile')
+								.setCta()
+								.onClick(async () => {
+									this.plugin.settings.activeProfileId = undefined;
+									await this.plugin.saveSettings();
+									this.displayWithScrollPreservation();
+								});
 						});
-					});
+				});
 			}
 		}
 
-		// Profile list
 		const profiles = this.plugin.settings.profiles || [];
 		if (profiles.length > 0) {
 			profiles.forEach(profile => {
-				new Setting(containerEl)
-					.setName(profile.name)
-					.setDesc(this.plugin.settings.activeProfileId === profile.id ? 'Active' : 'Inactive')
-					.addButton(button => {
-						button
-							.setButtonText('Load')
-							.setCta()
-							.onClick(async () => {
-								await this.loadProfile(profile.id);
-							});
-					})
-					.addButton(button => {
-						button
-							.setButtonText('Delete')
-							.onClick(async () => {
-								await this.deleteProfile(profile.id);
-							});
-					});
+				profilesGroup.addSetting(setting => {
+					setting
+						.setName(profile.name)
+						.setDesc(this.plugin.settings.activeProfileId === profile.id ? 'Active' : 'Inactive')
+						.addButton(button => {
+							button
+								.setButtonText('Load')
+								.setCta()
+								.onClick(async () => {
+									await this.loadProfile(profile.id);
+								});
+						})
+						.addButton(button => {
+							button
+								.setButtonText('Delete')
+								.onClick(async () => {
+									await this.deleteProfile(profile.id);
+								});
+						});
+				});
 			});
 		}
 
-		// Create new profile
-		new Setting(containerEl)
-			.setName('Create profile')
-			.setDesc('Save current settings as a new profile')
-			.addText(text => {
-				text.setPlaceholder('Profile name');
-				text.inputEl.onkeydown = async (e) => {
-					if (e.key === 'Enter') {
-						const name = text.getValue().trim();
-						if (name) {
-							await this.createProfile(name);
-							text.setValue('');
-							this.displayWithScrollPreservation();
+		profilesGroup.addSetting(setting => {
+			let nameInputEl: HTMLInputElement | null = null;
+			setting
+				.setName('Create profile')
+				.setDesc('Save current settings as a new profile')
+				.addText(text => {
+					text.setPlaceholder('Profile name');
+					nameInputEl = text.inputEl;
+					text.inputEl.onkeydown = async (e) => {
+						if (e.key === 'Enter') {
+							const name = text.getValue().trim();
+							if (name) {
+								await this.createProfile(name);
+								text.setValue('');
+								this.displayWithScrollPreservation();
+							}
 						}
-					}
-				};
-			})
-			.addButton(button => {
-				button
-					.setButtonText('Create')
-					.setCta()
-					.onClick(async () => {
-						const nameInput = containerEl.querySelector('input[placeholder="Profile name"]') as HTMLInputElement;
-						if (nameInput && nameInput.value.trim()) {
-							await this.createProfile(nameInput.value.trim());
-							nameInput.value = '';
-							this.displayWithScrollPreservation();
-						}
-					});
-			});
+					};
+				})
+				.addButton(button => {
+					button
+						.setButtonText('Create')
+						.setCta()
+						.onClick(async () => {
+							if (nameInputEl && nameInputEl.value.trim()) {
+								await this.createProfile(nameInputEl.value.trim());
+								nameInputEl.value = '';
+								this.displayWithScrollPreservation();
+							}
+						});
+				});
+		});
 	}
 
 	/**
