@@ -128,7 +128,43 @@ export class IconocolorSettingTab extends PluginSettingTab {
 			});
 		});
 
-		// Color Palettes section (moved up - foundation for colors)
+		// Automatic base color (lives in General; uses the active palette below)
+		generalGroup.addSetting(setting => {
+			setting
+				.setName('Enable automatic base color')
+				.setDesc('Automatically assign base colors to root-level folders from the active palette')
+				.addToggle(toggle => {
+					toggle
+						.setValue(this.plugin.settings.autoColorEnabled || false)
+						.onChange(async (value) => {
+							this.plugin.settings.autoColorEnabled = value;
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.displayWithScrollPreservation();
+						});
+				});
+		});
+
+		if (this.plugin.settings.autoColorEnabled) {
+			generalGroup.addSetting(setting => {
+				setting
+					.setName('Color mode')
+					.setDesc('How to apply colors: gradient creates smooth transitions, repeat cycles through palette')
+					.addDropdown(dropdown => {
+						dropdown.addOption('gradient', 'Gradient');
+						dropdown.addOption('repeat', 'Repeat');
+						dropdown.setValue(this.plugin.settings.autoColorMode || 'gradient');
+						dropdown.onChange(async (value) => {
+							this.plugin.settings.autoColorMode = value as 'gradient' | 'repeat';
+							await this.plugin.saveSettings();
+							await this.plugin.folderManager.updateSettings(this.plugin.settings);
+							this.displayWithScrollPreservation();
+						});
+					});
+			});
+		}
+
+		// Color Palettes section (foundation for colors)
 		const palettesGroup = new SettingGroup(containerEl).setHeading('Color palettes');
 
 		palettesGroup.addSetting(setting => {
@@ -200,44 +236,6 @@ export class IconocolorSettingTab extends PluginSettingTab {
 					});
 			});
 		});
-
-		// Automatic base color assignment (uses palettes, so comes after)
-		const autoColorGroup = new SettingGroup(containerEl).setHeading('Automatic base color');
-
-		autoColorGroup.addSetting(setting => {
-			setting
-				.setName('Enable automatic base color')
-				.setDesc('Automatically assign base colors to root-level folders from the active palette')
-				.addToggle(toggle => {
-					toggle
-						.setValue(this.plugin.settings.autoColorEnabled || false)
-						.onChange(async (value) => {
-							this.plugin.settings.autoColorEnabled = value;
-							await this.plugin.saveSettings();
-							await this.plugin.folderManager.updateSettings(this.plugin.settings);
-							this.displayWithScrollPreservation();
-						});
-				});
-		});
-
-		if (this.plugin.settings.autoColorEnabled) {
-			autoColorGroup.addSetting(setting => {
-				setting
-					.setName('Color mode')
-					.setDesc('How to apply colors: gradient creates smooth transitions, repeat cycles through palette')
-					.addDropdown(dropdown => {
-						dropdown.addOption('gradient', 'Gradient');
-						dropdown.addOption('repeat', 'Repeat');
-						dropdown.setValue(this.plugin.settings.autoColorMode || 'gradient');
-						dropdown.onChange(async (value) => {
-							this.plugin.settings.autoColorMode = value as 'gradient' | 'repeat';
-							await this.plugin.saveSettings();
-							await this.plugin.folderManager.updateSettings(this.plugin.settings);
-							this.displayWithScrollPreservation();
-						});
-					});
-			});
-		}
 
 		// Global transformations section (how colors are derived from base)
 		const transformsGroup = new SettingGroup(containerEl).setHeading('Color transformations');
